@@ -1,6 +1,9 @@
 
-
 node_modules
+bower_components
+
 .DS_Store
 *.log
 
+public/js/visual-audio.js
+public/js/visual-audio.js.map
