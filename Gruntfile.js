@@ -1,3 +1,10 @@
+function resolvePath(ending) {
+  if (ending && ending !== '') {
+    return __dirname + path.sep + ending;
+  }
+  return __dirname;
+}
+
 module.exports = function(grunt) {
   require("load-grunt-tasks")(grunt); // npm install --save-dev load-grunt-tasks
 
@@ -25,7 +32,6 @@ module.exports = function(grunt) {
           path: "./public/js/",
           filename: "visual-audio.js",
         },
-
         stats: {
           // Configure the console output
           colors: false,
@@ -33,8 +39,13 @@ module.exports = function(grunt) {
           // reasons: true
         },
         resolve: {
+          // root: resolvePath(''),
+          // alias: {
+          //  "shader": ""
+          // },
           modulesDirectories: ["./src/javascripts", "./src/shaders", "./bower_components"]
-        }
+        },
+
         // stats: false disables the stats output
       }
     }
