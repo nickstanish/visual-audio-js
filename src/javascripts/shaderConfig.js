@@ -1,3 +1,9 @@
+/**
+* Copyright 2015 Nick Stanish
+*
+*/
+
+
 var TYPE_VERTEX = 1;
 var TYPE_FRAGMENT= 2;
 

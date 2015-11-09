@@ -1,3 +1,9 @@
+/**
+* Copyright 2015 Nick Stanish
+*
+*/
+
+
 (function () {
   // https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Getting_started_with_WebGL
   // https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Animating_objects_with_WebGL

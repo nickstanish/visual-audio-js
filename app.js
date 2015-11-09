@@ -1,3 +1,9 @@
+/**
+* Copyright 2015 Nick Stanish
+*
+*/
+
+
 var express = require('express');
 var app = express();
 

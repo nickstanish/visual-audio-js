@@ -12,9 +12,23 @@ module.exports = function(grunt) {
 
   grunt.initConfig({
     watch: {
-      build: {
-        files: ['src/**/*'],
-        tasks: ['build']
+      js: {
+        files: ['src/shaders/**/*', 'src/javascripts/**/*'],
+        tasks: ['pack']
+      },
+      less: {
+        files: ['src/less/**/*'],
+        tasks: ['less:main']
+      }
+    },
+    less: {
+      main: {
+        options: {
+          paths: ["src/less"]
+        },
+        files: {
+          "public/css/styles.css": "src/less/styles.less"
+        }
       }
     },
     webpack: {
@@ -48,13 +62,23 @@ module.exports = function(grunt) {
 
         // stats: false disables the stats output
       }
+    },
+    concurrent: {
+      main: {
+        options: {
+          logConcurrentOutput: true
+        },
+        tasks: ['watch:js', 'watch:less']
+      }
     }
       
   });
 
   
 
-  grunt.registerTask("build", ['webpack:main']);
-  grunt.registerTask('default', ['build', 'watch:build']);
+  grunt.registerTask("pack", ['webpack:main']);
+  grunt.registerTask("build", ['less:main', 'pack']);
+  grunt.registerTask('default', ['build', 'concurrent:main']);
+
 };
 

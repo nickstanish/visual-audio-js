@@ -1,12 +1,16 @@
+//- Copyright 2015 Nick Stanish
 doctype html
 html
   head
     title Visual Audio JS
+    link(href='/public/css/bootstrap.min.css', rel='stylesheet')
     link(href='/public/css/styles.css', rel='stylesheet')
 
     script(src='/public/js/sylvester.js')
     script(src='/public/js/glUtils.js')
 
+    script(src='/public/js/jquery-2.1.4.min.js')
+    script(src='/public/js/bootstrap.min.js')
     script(src='/public/js/visual-audio.js')
   body
     .content-wrapper
@@ -14,7 +18,17 @@ html
       #overlay
         #overlay-wrapper
           #audio-chooser
-            label(for="audioFile") Select a song
+            h3 Select a song
+            label(for="audioFile") 
+              .btn.btn-default
+                .glyphicon.glyphicon-folder-open
             input#audioFile(type="file")
-            button#testSong Test
+          #media-player.off.paused
+            #now-playing
+            #media-controls
+              .btn.btn-default(data-control="play")
+                .glyphicon.glyphicon-play
+              .btn.btn-default(data-control="pause")
+                .glyphicon.glyphicon-pause
+
 

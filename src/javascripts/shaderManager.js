@@ -1,3 +1,9 @@
+/**
+* Copyright 2015 Nick Stanish
+*
+*/
+
+
 var _ = require("lodash/lodash.js");
 var ShaderConfig = require('shaderConfig.js');
 

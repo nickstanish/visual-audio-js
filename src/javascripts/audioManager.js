@@ -1,8 +1,14 @@
+/**
+* Copyright 2015 Nick Stanish
+*
+*/
+
 var _ = require("lodash/lodash.js");
 
 var AudioManager = function () {
-  var self = this;
   this.source = null;
+  this.mediaPlayerID = "#media-player";
+  this.audioChooserID = "#audio-chooser";
   
   try {
     this.audioContext = new AudioContext();
@@ -11,23 +17,40 @@ var AudioManager = function () {
   }
 
   var canvas = document.getElementById("canvas");
-  var fileChooser = document.getElementById("audio-chooser");
-  var testButton = document.getElementById("test-song");
 
+  var $fileChooser = $(this.audioChooserID);
+  var $playButton = $("#media-controls [data-control='play']");
+  var $pauseButton = $("#media-controls [data-control='pause']");
 
-  fileChooser.onchange = function (event) {
-    //the if statement fixes the file selction cancle, because the onchange will trigger even the file selection been canceled
+  $fileChooser.on("change", onFileChosen.bind(this));
+  $playButton.on("click", onPlayClicked.bind(this));
+  $pauseButton.on("click", onPauseClicked.bind(this));
+
+  function onFileChosen (event) {
     if (event.target.files.length !== 0) {
       //only process the first file
-      self.file = event.target.files[0];
-      self.fileName = self.file.name;
-      self.readCurrentFile();
+      this.file = event.target.files[0];
+      this.fileName = this.file.name;
+      $("#now-playing").text(this.fileName);
+      this.readCurrentFile();
     }
+  }
 
-  };
+  function onPlayClicked (event) {
+    if (this.audioContext && this.audioContext.state === "suspended"){
+      this.audioContext.resume().then(this.setControlsToPlaying.bind(this));
+    }
+  }
+  function onPauseClicked (event) {
+    if (this.audioContext && this.audioContext.state === "running"){
+      this.audioContext.suspend().then(this.setControlsToPaused.bind(this));
+    }
+  }
+
 };
 
 AudioManager.prototype.readCurrentFile = function () {
+  
   var self = this;
   var fileReader = new FileReader();
 
@@ -40,6 +63,8 @@ AudioManager.prototype.readCurrentFile = function () {
     audioContext.decodeAudioData(fileResult, function (buffer) {
         // that._visualize(audioContext, buffer);
       console.log("successfully loaded file");
+      $(self.mediaPlayerID).removeClass("off").addClass("on");
+      $(self.audioChooserID).addClass("no-select");
       self.start.call(self, audioContext, buffer);
     }, function (e) {
         console.log(e);
@@ -49,6 +74,7 @@ AudioManager.prototype.readCurrentFile = function () {
     console.log(e);
   };
   fileReader.readAsArrayBuffer(this.file);
+  
 };
 
 AudioManager.prototype.start = function (audioContext, buffer) {
@@ -80,14 +106,24 @@ AudioManager.prototype.start = function (audioContext, buffer) {
     console.log("song ended");
     // that._audioEnd(that);
   };
+  this.setControlsToPlaying();
   // this._updateInfo('Playing ' + this.fileName, false);
   // this.info = 'Playing ' + this.fileName;
   // document.getElementById('fileWrapper').style.opacity = 0.2;
   // this._drawSpectrum(analyser);
-
-
 };
 
+AudioManager.prototype.setControlsToPaused = function () {
+  var $mediaPlayer = $(this.mediaPlayerID);
+  $mediaPlayer.removeClass("playing");
+  $mediaPlayer.addClass("paused");
+}
+
+AudioManager.prototype.setControlsToPlaying = function () {
+  var $mediaPlayer = $(this.mediaPlayerID);
+  $mediaPlayer.removeClass("paused");
+  $mediaPlayer.addClass("playing");
+}
 
 
 

@@ -1,3 +1,9 @@
+/**
+* Copyright 2015 Nick Stanish
+*
+*/
+
+
 attribute vec3 aVertexPosition;
 attribute vec4 aVertexColor;
 

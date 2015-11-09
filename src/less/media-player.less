@@ -1,0 +1,33 @@
+#media-player {
+  margin-top: 10px;
+  width: auto;
+  display: inline-block;
+  min-width: 300px;
+  opacity: 0.3;
+
+  .transition(opacity 0.2s ease);
+
+  &:hover {
+    opacity: 1;
+  }
+
+  &.off {
+    display: none;
+  }
+}
+
+#media-player #media-controls {
+  margin-top: 5px;
+
+  [data-control] {
+    margin-left: 5px;
+  }
+}
+
+#media-player.paused [data-control="pause"]{
+  display: none;
+}
+
+#media-player.playing [data-control="play"]{
+  display: none;
+}
