@@ -1,6 +1,9 @@
 (function () {
   // https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Getting_started_with_WebGL
   // https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Animating_objects_with_WebGL
+  var polyfill = require("polyfills");
+  polyfill();
+
   document.addEventListener("DOMContentLoaded", onLoad);
   document.addEventListener("resize", onResize);
 
@@ -27,6 +30,41 @@
   var perspectiveMatrix;
   var vertexPositionAttribute, vertexColorAttribute;
   var gl;
+  var squareRotation = 0.0;
+  var lastSquareUpdateTime;
+  var squareXOffset = 0.0;
+  var squareYOffset = 0.0;
+  var squareZOffset = 0.0;
+  var xIncValue = 0.2;
+  var yIncValue = -0.4;
+  var zIncValue = 0.3;
+  var mvMatrixStack = [];
+
+  function mvPushMatrix(m) {
+    if (m) {
+      mvMatrixStack.push(m.dup());
+      mvMatrix = m.dup();
+    } else {
+      mvMatrixStack.push(mvMatrix.dup());
+    }
+  }
+
+  function mvPopMatrix() {
+    if (!mvMatrixStack.length) {
+      throw("Can't pop from an empty matrix stack.");
+    }
+    
+    mvMatrix = mvMatrixStack.pop();
+    return mvMatrix;
+  }
+
+  function mvRotate(angle, v) {
+    var inRadians = angle * Math.PI / 180.0;
+    
+    var m = Matrix.Rotation(inRadians, $V([v[0], v[1], v[2]])).ensure4x4();
+    multMatrix(m);
+  }
+
 
   function loadIdentity() {
     mvMatrix = Matrix.I(4);
@@ -75,12 +113,19 @@
   }
 
   function drawScene() {
+    requestAnimationFrame(drawScene);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     
-    perspectiveMatrix = makePerspective(45, 640.0/480.0, 0.1, 100.0);
+    perspectiveMatrix = makePerspective(45, canvas.offsetWidth/canvas.offsetHeight, 0.1, 100.0);
     
     loadIdentity();
-    mvTranslate([-0.0, 0.0, -6.0]);
+     mvTranslate([-0.0, 0.0, -6.0]);
+
+   // Save the current matrix, then rotate before we draw.
+
+    mvPushMatrix();
+    mvRotate(squareRotation, [1, 0, 1]);
+    // mvTranslate([squareXOffset, squareYOffset, squareZOffset]);
     
     gl.bindBuffer(gl.ARRAY_BUFFER, squareVerticesBuffer);
     gl.vertexAttribPointer(vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
@@ -90,12 +135,35 @@
 
     setMatrixUniforms();
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+    mvPopMatrix();
+
+    var currentTime = (new Date).getTime();
+    if (lastSquareUpdateTime) {
+      var delta = currentTime - lastSquareUpdateTime;
+
+      squareRotation += (60 * delta) / 1000.0;
+      //squareXOffset += xIncValue * ((30 * delta) / 1000.0);
+      //squareYOffset += yIncValue * ((30 * delta) / 1000.0);
+      //squareZOffset += zIncValue * ((30 * delta) / 1000.0);
+
+      if (Math.abs(squareYOffset) > 2.5) {
+        xIncValue = -xIncValue;
+        yIncValue = -yIncValue;
+        zIncValue = -zIncValue;
+      }
+    }
+
+      lastSquareUpdateTime = currentTime;
   }
 
   function onLoad () {
 
     var ShaderManager = require('shaderManager.js');
+    var AudioManager = require('audioManager.js');
+
     var shaderManager = new ShaderManager();
+    var audioManager = new AudioManager();
     
 
     var canvas = document.getElementById("canvas");
@@ -133,7 +201,8 @@
       gl.depthFunc(gl.LEQUAL);
       // Clear the color as well as the depth buffer.
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-      drawScene();
+      
+      requestAnimationFrame(drawScene);
     }
   }
 
