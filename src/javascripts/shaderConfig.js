@@ -18,6 +18,16 @@ var config = [
     type: TYPE_FRAGMENT,
     source: require('raw!simpleShader.fragment.glsl')
   },
+  {
+    name: 'lineShader',
+    type: TYPE_VERTEX,
+    source: require('raw!line.vertex.glsl')
+  },
+  {
+    name: 'lineShader',
+    type: TYPE_FRAGMENT,
+    source: require('raw!line.fragment.glsl')
+  },
 ];
 
 var ShaderConfig = {}

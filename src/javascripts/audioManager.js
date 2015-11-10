@@ -6,12 +6,15 @@
 var _ = require("lodash/lodash.js");
 
 var AudioManager = function () {
+  window.audioManager = this;
+
   this.source = null;
   this.mediaPlayerID = "#media-player";
   this.audioChooserID = "#audio-chooser";
   
   try {
     this.audioContext = new AudioContext();
+    this.analyser = null;
   } catch (e) {
     console.log(e);
   }
@@ -80,6 +83,7 @@ AudioManager.prototype.readCurrentFile = function () {
 AudioManager.prototype.start = function (audioContext, buffer) {
   var audioBufferSouceNode = audioContext.createBufferSource();
   var analyser = audioContext.createAnalyser();
+  // analyser.smoothingTimeConstant = 0.85;
   var that = this;
   //connect the source to the analyser
   audioBufferSouceNode.connect(analyser);
@@ -111,19 +115,33 @@ AudioManager.prototype.start = function (audioContext, buffer) {
   // this.info = 'Playing ' + this.fileName;
   // document.getElementById('fileWrapper').style.opacity = 0.2;
   // this._drawSpectrum(analyser);
+  this.analyser = analyser;
 };
 
 AudioManager.prototype.setControlsToPaused = function () {
   var $mediaPlayer = $(this.mediaPlayerID);
   $mediaPlayer.removeClass("playing");
   $mediaPlayer.addClass("paused");
-}
+};
 
 AudioManager.prototype.setControlsToPlaying = function () {
   var $mediaPlayer = $(this.mediaPlayerID);
   $mediaPlayer.removeClass("paused");
   $mediaPlayer.addClass("playing");
-}
+};
+
+AudioManager.prototype.isPlaying = function () {
+  return this.status === 1;
+};
+
+AudioManager.prototype.getFrequencyData = function () {
+  var analyser = this.analyser;
+
+  var bufferLength = analyser.frequencyBinCount;
+  var data = new Uint8Array(bufferLength);
+  analyser.getByteTimeDomainData(data);
+  return data;
+};
 
 
 
