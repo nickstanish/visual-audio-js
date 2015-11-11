@@ -16,7 +16,7 @@ html
     .content-wrapper
       canvas#canvas
       #overlay
-        #overlay-wrapper
+        #overlay-wrapper.user-select
           #audio-chooser
             h3 Select a song
             label(for="audioFile") 
@@ -24,8 +24,8 @@ html
                 .glyphicon.glyphicon-folder-open
             input#audioFile(type="file")
           #media-player.off.paused
-            #now-playing
-            #media-controls
+            #now-playing.user-select
+            #media-controls.user-select
               .btn.btn-default(data-control="play")
                 .glyphicon.glyphicon-play
               .btn.btn-default(data-control="pause")

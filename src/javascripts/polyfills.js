@@ -9,6 +9,7 @@ function audioFill () {
   window.requestAnimationFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.msRequestAnimationFrame;
 }
 
+
 module.exports = function polyfill() {
   audioFill();
 };

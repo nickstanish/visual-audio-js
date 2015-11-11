@@ -27,7 +27,7 @@
       alert("Unable to initialize WebGL. Your browser may not support it.");
       gl = null;
     }
-    
+    window.gl = gl;
     return gl;
   }
 
@@ -49,7 +49,26 @@
   var shaderProgram;
   var lineShader;
 
+  var particles = [];
+  var particleBuffer;
+  var particleShader;
+
   var audioManager = null;
+
+  function getRandom(min, max) {
+    return Math.random() * (max - min) + min;
+  }
+
+  function initParticles(){ 
+    var max = 5000;
+    
+    for (var i = 0; i < max; i++) {
+      particles = particles.concat([getRandom(-5,5), getRandom(-5,5), getRandom(-5,5)]);
+    }
+    particleBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, particleBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(particles), gl.STATIC_DRAW);
+  }
 
   function mvPushMatrix(m) {
     if (m) {
@@ -94,7 +113,17 @@
     gl.uniformMatrix4fv(pUniform, false, new Float32Array(perspectiveMatrix.flatten()));
 
     var mvUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
-    gl.uniformMatrix4fv(mvUniform, false, new Float32Array(mvMatrix.flatten()));
+    gl.uniformMatrix4fv(mvUniform, false, new Float32Array(camera.getModelViewMatrix().flatten()));
+  
+    var mUniform = gl.getUniformLocation(shaderProgram, "uMMatrix");
+    var modelMatrix = Matrix.I(4);
+    var inRadians = squareRotation * Math.PI / 180.0;
+    var v = [1, 0, 1];
+    
+    var m = Matrix.Rotation(inRadians, $V([v[0], v[1], v[2]])).ensure4x4();
+    modelMatrix = modelMatrix.x(m);
+    gl.uniformMatrix4fv(mUniform, false, new Float32Array(modelMatrix.flatten()));
+  
   }
 
   function initBuffers() {
@@ -130,23 +159,51 @@
     gl.bindBuffer(gl.ARRAY_BUFFER, lineColorBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(lineColors), gl.STATIC_DRAW);
 
+    initParticles();
+
+  }
+
+  window.frameCount = 0;
+  function drawPoints() {
+    gl.useProgram(particleShader);
+    var pUniform = gl.getUniformLocation(particleShader, "uPMatrix");
+    gl.uniformMatrix4fv(pUniform, false, new Float32Array(perspectiveMatrix.flatten()));
+
+    var mvUniform = gl.getUniformLocation(particleShader, "uMVMatrix");
+    gl.uniformMatrix4fv(mvUniform, false, new Float32Array(camera.getModelViewMatrix().flatten()));
+
+    var frameUniform = gl.getUniformLocation(particleShader, "inFrame");
+    gl.uniform1f(frameUniform, window.frameCount);
+
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, particleBuffer);
+    gl.vertexAttribPointer(particlePositionAttribute, 3, gl.FLOAT, false, 0, 0);
+
+    gl.drawArrays(gl.POINTS, 0, particles.length / 3);
   }
 
   function drawScene() {
     requestAnimationFrame(drawScene);
+    
+    setTimeout(function() {
+      window.frameCount += 1;;
+    }, 0);
+
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     gl.useProgram(shaderProgram);
+    // 16:9
+    // 4:3
+    perspectiveMatrix = makePerspective(50, 3.0/3, 0.1, 100.0);
     
-    perspectiveMatrix = makePerspective(45, canvas.offsetWidth/canvas.offsetHeight, 0.1, 100.0);
-    
-    loadIdentity();
-     mvTranslate([-0.0, 0.0, -6.0]);
+    // loadIdentity();
+     // mvRotate(squareRotation, [1, 0, 1]);
+     // mvTranslate([window.cx || -6, window.cy || -7, window.cz || -18.0]);
 
    // Save the current matrix, then rotate before we draw.
 
-    mvPushMatrix();
-    mvRotate(squareRotation, [1, 0, 1]);
+    // mvPushMatrix();
+   
     // mvTranslate([squareXOffset, squareYOffset, squareZOffset]);
     
     gl.bindBuffer(gl.ARRAY_BUFFER, squareVerticesBuffer);
@@ -158,7 +215,7 @@
     setMatrixUniforms();
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
-    mvPopMatrix();
+    // mvPopMatrix();
 
     if (audioManager && audioManager.isPlaying()) {
       
@@ -176,8 +233,8 @@
       for(var i = 0; i < data.length; i++) {
            
         var v = data[i] / 128 - 1; // [-1,1]
-        x = (i * sliceWidth - 0.5) * 4;
-        y = v * 2;
+        x = (i * sliceWidth - 0.5) * 6;
+        y = v;
 
         points = points.concat([x, y, z]);
 
@@ -189,7 +246,7 @@
       gl.uniformMatrix4fv(pUniform, false, new Float32Array(perspectiveMatrix.flatten()));
 
       var mvUniform = gl.getUniformLocation(lineShader, "uMVMatrix");
-      gl.uniformMatrix4fv(mvUniform, false, new Float32Array(mvMatrix.flatten()));
+      gl.uniformMatrix4fv(mvUniform, false, new Float32Array(camera.getModelViewMatrix().flatten()));
 
       lineVerticesBuffer = gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER, lineVerticesBuffer);
@@ -205,6 +262,7 @@
 
       
     }
+    drawPoints();
 
     var currentTime = (new Date).getTime();
     if (lastSquareUpdateTime) {
@@ -224,14 +282,129 @@
 
       lastSquareUpdateTime = currentTime;
   }
+  function keyHandler (event) {
+    var key = event.keyCode;
+    var keyMap = {
+      '37': {
+        id: "left_arrow",
+        action: "minus_yaw"
+      },
+      '38': {
+        id: "up_arrow",
+        action: "plus_pitch"
+      },
+      '39': {
+        id: "right_arrow",
+        action: "plus_yaw"
+      },
+      '40': {
+        id: "down_arrow",
+        action: "minus_pitch"
+      },
+      '87': {
+        id: "W",
+        action: "move_forward"
+      },
+      '65': {
+        id: "A",
+        action: "move_left"
+      },
+      '83': {
+        id: "S",
+        action: "move_backward"
+      },
+      '68': {
+        id: "D",
+        action: "move_right"
+      }
+    };
+
+    console.log(keyMap[key]);
+
+    var pitch_delta = 0.1;
+    var yaw_delta = 0.1;
+    var movement_delta = 0.1;
+
+    if (!keyMap[key]) {
+      return;
+    }
+
+    switch (keyMap[key].action) {
+      case "minus_pitch":
+        camera.pitch -= pitch_delta;
+      break;
+      case "plus_pitch":
+        camera.pitch += pitch_delta;
+      break;
+      case "plus_yaw":
+        camera.yaw += yaw_delta;
+      break;
+      case "minus_yaw":
+        camera.yaw -= yaw_delta;
+      break;
+      case "move_forward":
+        camera.position[2] += movement_delta;
+      break;
+      case "move_backward":
+        camera.position[2] -= movement_delta;
+      break;
+      case "move_left":
+        camera.position[0] -= movement_delta;
+      break;
+      case "move_right":
+        camera.position[0] += movement_delta;
+      break;
+
+    }
+
+    console.log(camera.position);
+    console.log(camera.pitch);
+    console.log(camera.yaw);
+    
+  }
+
+  function Camera () {
+    // this.position = [0,0,-2];
+    this.position = [0,0,-72];
+
+    // this.pitch = 0;
+    this.pitch = 22;
+
+    //this.yaw = 0;
+    this.yaw = 20;
+    
+  }
+
+  Camera.prototype.getModelViewMatrix = function () {
+    // [0, 0, -39.50000000000029]
+    // main.js:338 21.400000000000034
+    // main.js:339 -16.19999999999996
+
+
+    loadIdentity();
+
+    mvRotate(-this.pitch, [1, 0, 0]);
+    mvRotate(this.yaw, [0, 1, 0]);
+    mvTranslate(this.position);
+    
+
+    return mvMatrix;
+  }
+
+  var camera;
+
 
   function onLoad () {
+
+    $(document).on("keydown", keyHandler);
 
     var ShaderManager = require('shaderManager.js');
     var AudioManager = require('audioManager.js');
 
     var shaderManager = new ShaderManager();
     audioManager = new AudioManager();
+
+    camera = window.camera = new Camera();
     
 
     var canvas = document.getElementById("canvas");
@@ -248,6 +421,12 @@
     gl.attachShader(lineShader, shaderManager.vertex['lineShader']);
     gl.attachShader(lineShader, shaderManager.fragment['lineShader']);
     gl.linkProgram(lineShader);
+
+    particleShader = gl.createProgram();
+    gl.attachShader(particleShader, shaderManager.vertex['particleShader']);
+    gl.attachShader(particleShader, shaderManager.fragment['particleShader']);
+    gl.linkProgram(particleShader);
+
 
     gl.lineWidth(1);
 
@@ -274,8 +453,11 @@
     linePositionsAttribute = gl.getAttribLocation(lineShader, "inCoord");
     gl.enableVertexAttribArray(linePositionsAttribute);
 
+    particlePositionAttribute = gl.getAttribLocation(particleShader, "inCoord");
+    gl.enableVertexAttribArray(particlePositionAttribute);
+
     // Only continue if WebGL is available and working
-    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.viewport(0, 0, canvas.offsetWidth, canvas.offsetHeight);
   
     if (gl) {
       // Set clear color to black, fully opaque
@@ -292,6 +474,7 @@
   }
 
   function onResize() {
+    gl.viewport(0, 0, canvas.offsetWidth, canvas.offsetHeight);
   }
 
 
