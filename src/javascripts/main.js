@@ -33,6 +33,7 @@
 
   var stats;
 
+  var barBuffer;
   var horizAspect = 480.0/640.0;
   var squareVerticesBuffer, squareVerticesColorBuffer;
   var perspectiveMatrix;
@@ -52,8 +53,12 @@
   var lineShader;
 
   var particles = [];
+  var particleVelocities = [];
   var particleBuffer;
   var particleShader;
+
+  var barShader;
+  var barVerticesLocation;
 
   var audioManager = null;
 
@@ -61,11 +66,25 @@
     return Math.random() * (max - min) + min;
   }
 
+  function moveParticles () {
+    var max = 10000;
+    for (var i = 0; i < max; i++) {
+      if (Math.abs(particles[i] + particleVelocities[i]) > 5.01) {
+        particleVelocities[i] = -particleVelocities[i];
+      }
+      
+      particles[i] = particles[i] + particleVelocities[i];
+    }
+    gl.bindBuffer(gl.ARRAY_BUFFER, particleBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(particles), gl.STATIC_DRAW);
+  }
+
   function initParticles(){ 
-    var max = 50000;
+    var max = 5000;
     
     for (var i = 0; i < max; i++) {
       particles = particles.concat([getRandom(-5,5), getRandom(-5,5), getRandom(-5,5)]);
+      particleVelocities = particleVelocities.concat([getRandom(-0.005,0.005), getRandom(-0.005,0.005), getRandom(-0.005,0.005)]);
     }
     particleBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, particleBuffer);
@@ -167,6 +186,8 @@
 
   window.frameCount = 0;
   function drawPoints(max) {
+    moveParticles();
+
     gl.useProgram(particleShader);
     var pUniform = gl.getUniformLocation(particleShader, "uPMatrix");
     gl.uniformMatrix4fv(pUniform, false, new Float32Array(perspectiveMatrix.flatten()));
@@ -227,16 +248,26 @@
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
     // mvPopMatrix();
+    var bars = [];
     var max = -1;
 
     if (audioManager && audioManager.isPlaying()) {
+
+      var bufferLength = audioManager.analyser.frequencyBinCount;
+      var widthScale = 8.0;
+      var barWidth = widthScale / bufferLength;
+      var barPadding = barWidth * 0.2;
       
 
       var points = [];
 
+      var domainData = audioManager.getTimeDomainData();
       var data = audioManager.getFrequencyData();
 
       var sliceWidth = 1.0 / data.length;
+      var halfWidthScale = (widthScale / 2);
+
+      
       
       var x = 0;
       var y = 0;
@@ -244,15 +275,28 @@
 
       for(var i = 0; i < data.length; i++) {
 
-        if (data[i] > max) {
-          max = data[i];
-        }
            
-        var v = data[i] / 128 - 1; // [-1,1]
+        var v = domainData[i] / 128 - 1; // [-1,1]
         x = (i * sliceWidth - 0.5) * 6;
         y = v;
 
         points = points.concat([x, y, z]);
+
+
+        var height = data[i] / 256; // [0, 1]
+        var bottom = 0;
+        var x1 = (i * (barWidth)) - halfWidthScale;
+        var x2 = x1 + (barWidth - barPadding);
+        var z = 1;
+        var bar = [
+          x1, height, z,
+          x1, bottom, z,
+          x2, bottom, z,
+          x2, height, z,
+          x1, height, z,
+          x2, bottom, z
+        ];
+        bars = bars.concat(bar);
 
       }
 
@@ -265,7 +309,7 @@
       var mvUniform = gl.getUniformLocation(lineShader, "uMVMatrix");
       gl.uniformMatrix4fv(mvUniform, false, new Float32Array(camera.getModelViewMatrix().flatten()));
 
-      max = (data[0] + data[1] + data[2]) / 3.0 / 255.0;
+      max = (domainData[0] + domainData[1] + domainData[2]) / 3.0 / 255.0;
 
       lineVerticesBuffer = gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER, lineVerticesBuffer);
@@ -278,6 +322,34 @@
       // gl.vertexAttribPointer(vertexColorAttribute, 4, gl.FLOAT, false, 0, 0);
 
       gl.drawArrays(gl.LINE_STRIP, 0, points.length / 3);
+
+      barBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, barBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(bars), gl.STATIC_DRAW);
+
+      (function () {
+        gl.useProgram(barShader);
+        var pUniform = gl.getUniformLocation(barShader, "uPMatrix");
+        gl.uniformMatrix4fv(pUniform, false, new Float32Array(perspectiveMatrix.flatten()));
+
+        var mvUniform = gl.getUniformLocation(barShader, "uMVMatrix");
+        gl.uniformMatrix4fv(mvUniform, false, new Float32Array(camera.getModelViewMatrix().flatten()));
+      
+        var mUniform = gl.getUniformLocation(barShader, "uMMatrix");
+        var modelMatrix = Matrix.I(4);
+        // var inRadians = squareRotation * Math.PI / 180.0;
+        var v = [0, 1, 0];
+        
+        var m = Matrix.Translation($V([v[0], v[1], v[2]])).ensure4x4();
+        // var m = Matrix.Rotation(inRadians, $V([v[0], v[1], v[2]])).ensure4x4();
+        modelMatrix = modelMatrix.x(m);
+        gl.uniformMatrix4fv(mUniform, false, new Float32Array(modelMatrix.flatten()));
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, barBuffer);
+        gl.vertexAttribPointer(barVerticesLocation, 3, gl.FLOAT, false, 0, 0);
+
+        gl.drawArrays(gl.TRIANGLES, 0, bars.length / 3.0);
+      })()
 
       
     }
@@ -389,12 +461,12 @@
   function Camera () {
     // this.position = [0,0,-2];
     // this.position = [0,0,-72];
-    this.position = [4, 3, -9];
-    // this.pitch = 0;
-    this.pitch = 22;
+    this.position = [0, 0, -8];
+    this.pitch = 0;
+    // this.pitch = 22;
 
-    //this.yaw = 0;
-    this.yaw = 20;
+    this.yaw = 0;
+    // this.yaw = 20;
     
   }
 
@@ -459,6 +531,11 @@
     gl.attachShader(particleShader, shaderManager.fragment['particleShader']);
     gl.linkProgram(particleShader);
 
+    barShader = gl.createProgram();
+    gl.attachShader(barShader, shaderManager.vertex['barShader']);
+    gl.attachShader(barShader, shaderManager.fragment['barShader']);
+    gl.linkProgram(barShader);
+
 
     // gl.lineWidth(1);
 
@@ -487,6 +564,10 @@
 
     particlePositionAttribute = gl.getAttribLocation(particleShader, "inCoord");
     gl.enableVertexAttribArray(particlePositionAttribute);
+
+    gl.useProgram(barShader);
+    barVerticesLocation = gl.getAttribLocation(barShader, "aVertexPosition");
+    gl.enableVertexAttribArray(barVerticesLocation);
 
     // Only continue if WebGL is available and working
     // gl.viewport(0, 0, canvas.offsetWidth, canvas.offsetHeight);

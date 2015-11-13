@@ -163,7 +163,7 @@ AudioManager.prototype.isPlaying = function () {
   return this.status === 1;
 };
 
-AudioManager.prototype.getFrequencyData = function () {
+AudioManager.prototype.getTimeDomainData = function () {
   var analyser = this.analyser;
 
   var bufferLength = analyser.frequencyBinCount;
@@ -171,7 +171,14 @@ AudioManager.prototype.getFrequencyData = function () {
   analyser.getByteTimeDomainData(data);
   return data;
 };
+AudioManager.prototype.getFrequencyData = function () {
+  var analyser = this.analyser;
 
+  var bufferLength = analyser.frequencyBinCount;
+  var data = new Uint8Array(bufferLength);
+  analyser.getByteFrequencyData(data);
+  return data;
+};
 
 
 module.exports = AudioManager;

@@ -37,6 +37,16 @@ var config = [
     name: 'particleShader',
     type: TYPE_FRAGMENT,
     source: require('raw!particle.fragment.glsl')
+  }, 
+  {
+    name: 'barShader',
+    type: TYPE_VERTEX,
+    source: require('raw!bar.vertex.glsl')
+  },
+  {
+    name: 'barShader',
+    type: TYPE_FRAGMENT,
+    source: require('raw!bar.fragment.glsl')
   },
 ];
 

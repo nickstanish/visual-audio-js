@@ -14,6 +14,7 @@ void main(void) {
   float value;
   if (intensity < 0.0) {
     value = sin((inFrame + coord.x * coord.y) / 50.0 + coord.x / coord.y) / 2.0 + 0.5;
+    value = 1.0;
   } else {
     value = intensity;
   }
