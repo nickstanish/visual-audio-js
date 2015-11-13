@@ -11,7 +11,7 @@
   polyfill();
 
   document.addEventListener("DOMContentLoaded", onLoad);
-  document.addEventListener("resize", onResize);
+  // document.addEventListener("resize", onResize);
 
   function initWebGL(canvas) {
     var gl;
@@ -30,6 +30,8 @@
     window.gl = gl;
     return gl;
   }
+
+  var stats;
 
   var horizAspect = 480.0/640.0;
   var squareVerticesBuffer, squareVerticesColorBuffer;
@@ -60,7 +62,7 @@
   }
 
   function initParticles(){ 
-    var max = 5000;
+    var max = 50000;
     
     for (var i = 0; i < max; i++) {
       particles = particles.concat([getRandom(-5,5), getRandom(-5,5), getRandom(-5,5)]);
@@ -164,7 +166,7 @@
   }
 
   window.frameCount = 0;
-  function drawPoints() {
+  function drawPoints(max) {
     gl.useProgram(particleShader);
     var pUniform = gl.getUniformLocation(particleShader, "uPMatrix");
     gl.uniformMatrix4fv(pUniform, false, new Float32Array(perspectiveMatrix.flatten()));
@@ -176,6 +178,12 @@
     gl.uniform1f(frameUniform, window.frameCount);
 
 
+    var intensity = gl.getUniformLocation(particleShader, "intensity");
+    gl.uniform1f(intensity, max);
+  
+    
+
+
     gl.bindBuffer(gl.ARRAY_BUFFER, particleBuffer);
     gl.vertexAttribPointer(particlePositionAttribute, 3, gl.FLOAT, false, 0, 0);
 
@@ -183,7 +191,9 @@
   }
 
   function drawScene() {
-    requestAnimationFrame(drawScene);
+    resize();
+    stats.begin();
+    
     
     setTimeout(function() {
       window.frameCount += 1;;
@@ -194,7 +204,8 @@
     gl.useProgram(shaderProgram);
     // 16:9
     // 4:3
-    perspectiveMatrix = makePerspective(50, 3.0/3, 0.1, 100.0);
+    var aspect = canvas.clientWidth / canvas.clientHeight;
+    perspectiveMatrix = makePerspective(50, aspect, 0.1, 100.0);
     
     // loadIdentity();
      // mvRotate(squareRotation, [1, 0, 1]);
@@ -216,6 +227,7 @@
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
     // mvPopMatrix();
+    var max = -1;
 
     if (audioManager && audioManager.isPlaying()) {
       
@@ -231,6 +243,10 @@
       var z = 1;
 
       for(var i = 0; i < data.length; i++) {
+
+        if (data[i] > max) {
+          max = data[i];
+        }
            
         var v = data[i] / 128 - 1; // [-1,1]
         x = (i * sliceWidth - 0.5) * 6;
@@ -240,6 +256,7 @@
 
       }
 
+
       // linePositionsAttribute, lineVerticesBuffer
       gl.useProgram(lineShader);
        var pUniform = gl.getUniformLocation(lineShader, "uPMatrix");
@@ -247,6 +264,8 @@
 
       var mvUniform = gl.getUniformLocation(lineShader, "uMVMatrix");
       gl.uniformMatrix4fv(mvUniform, false, new Float32Array(camera.getModelViewMatrix().flatten()));
+
+      max = (data[0] + data[1] + data[2]) / 3.0 / 255.0;
 
       lineVerticesBuffer = gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER, lineVerticesBuffer);
@@ -262,7 +281,7 @@
 
       
     }
-    drawPoints();
+    drawPoints(max);
 
     var currentTime = (new Date).getTime();
     if (lastSquareUpdateTime) {
@@ -280,7 +299,11 @@
       }
     }
 
-      lastSquareUpdateTime = currentTime;
+    lastSquareUpdateTime = currentTime;
+
+
+    stats.end();
+    requestAnimationFrame(drawScene);
   }
   function keyHandler (event) {
     var key = event.keyCode;
@@ -349,10 +372,10 @@
         camera.position[2] -= movement_delta;
       break;
       case "move_left":
-        camera.position[0] -= movement_delta;
+        camera.position[0] += movement_delta;
       break;
       case "move_right":
-        camera.position[0] += movement_delta;
+        camera.position[0] -= movement_delta;
       break;
 
     }
@@ -365,8 +388,8 @@
 
   function Camera () {
     // this.position = [0,0,-2];
-    this.position = [0,0,-72];
-
+    // this.position = [0,0,-72];
+    this.position = [4, 3, -9];
     // this.pitch = 0;
     this.pitch = 22;
 
@@ -397,6 +420,15 @@
   function onLoad () {
 
     $(document).on("keydown", keyHandler);
+    stats = new Stats();
+    stats.setMode(0); // 0: fps, 1: ms, 2: mb
+
+    // align top-left
+    stats.domElement.style.position = 'absolute';
+    stats.domElement.style.right = '0px';
+    stats.domElement.style.top = '0px';
+
+    document.body.appendChild( stats.domElement );
 
     var ShaderManager = require('shaderManager.js');
     var AudioManager = require('audioManager.js');
@@ -428,7 +460,7 @@
     gl.linkProgram(particleShader);
 
 
-    gl.lineWidth(1);
+    // gl.lineWidth(1);
 
     
 
@@ -457,8 +489,8 @@
     gl.enableVertexAttribArray(particlePositionAttribute);
 
     // Only continue if WebGL is available and working
-    gl.viewport(0, 0, canvas.offsetWidth, canvas.offsetHeight);
-  
+    // gl.viewport(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+    gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
     if (gl) {
       // Set clear color to black, fully opaque
       gl.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -473,9 +505,17 @@
     }
   }
 
-  function onResize() {
-    gl.viewport(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+  function resize() {
+    var width = gl.canvas.clientWidth;
+    var height = gl.canvas.clientHeight;
+    if (gl.canvas.width != width ||
+        gl.canvas.height != height) {
+       gl.canvas.width = width;
+       gl.canvas.height = height;
+       gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+    }
   }
+
 
 
 })();

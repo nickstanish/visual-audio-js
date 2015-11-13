@@ -24,10 +24,12 @@ var AudioManager = function () {
   var $fileChooser = $(this.audioChooserID);
   var $playButton = $("#media-controls [data-control='play']");
   var $pauseButton = $("#media-controls [data-control='pause']");
+  var $stopButton = $("#media-controls [data-control='stop']");
 
   $fileChooser.on("change", onFileChosen.bind(this));
   $playButton.on("click", onPlayClicked.bind(this));
   $pauseButton.on("click", onPauseClicked.bind(this));
+  $stopButton.on("click", onStopClicked.bind(this));
 
   function onFileChosen (event) {
     if (event.target.files.length !== 0) {
@@ -50,6 +52,12 @@ var AudioManager = function () {
     }
   }
 
+  function onStopClicked (event) {
+    if (this.audioContext){
+      this.stop();
+    }
+  }
+
 };
 
 AudioManager.prototype.readCurrentFile = function () {
@@ -66,8 +74,7 @@ AudioManager.prototype.readCurrentFile = function () {
     audioContext.decodeAudioData(fileResult, function (buffer) {
         // that._visualize(audioContext, buffer);
       console.log("successfully loaded file");
-      $(self.mediaPlayerID).removeClass("off").addClass("on");
-      $(self.audioChooserID).addClass("no-select");
+      self.setControlsToStarted();
       self.start.call(self, audioContext, buffer);
     }, function (e) {
         console.log(e);
@@ -80,11 +87,20 @@ AudioManager.prototype.readCurrentFile = function () {
   
 };
 
+AudioManager.prototype.stop = function () {
+  this.status = 0;
+  if (this.source) {
+    this.source.stop();
+  }
+  this.source = null;
+  this.setControlsToStopped();
+};
+
 AudioManager.prototype.start = function (audioContext, buffer) {
   var audioBufferSouceNode = audioContext.createBufferSource();
   var analyser = audioContext.createAnalyser();
   // analyser.smoothingTimeConstant = 0.85;
-  var that = this;
+  var self = this;
   //connect the source to the analyser
   audioBufferSouceNode.connect(analyser);
   //connect the analyser to the destination(the speaker), or we won't hear the sound
@@ -108,6 +124,9 @@ AudioManager.prototype.start = function (audioContext, buffer) {
   this.source = audioBufferSouceNode;
   audioBufferSouceNode.onended = function() {
     console.log("song ended");
+    self.status = 0;
+    self.source = null;
+    self.setControlsToStopped();
     // that._audioEnd(that);
   };
   this.setControlsToPlaying();
@@ -116,6 +135,16 @@ AudioManager.prototype.start = function (audioContext, buffer) {
   // document.getElementById('fileWrapper').style.opacity = 0.2;
   // this._drawSpectrum(analyser);
   this.analyser = analyser;
+};
+
+AudioManager.prototype.setControlsToStarted = function () {
+  $(this.mediaPlayerID).removeClass("off").addClass("on");
+  $(this.audioChooserID).addClass("no-select");
+};
+
+AudioManager.prototype.setControlsToStopped = function () {
+  $(this.mediaPlayerID).addClass("off").removeClass("on");
+  $(this.audioChooserID).removeClass("no-select");
 };
 
 AudioManager.prototype.setControlsToPaused = function () {
