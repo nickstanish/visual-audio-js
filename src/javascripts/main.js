@@ -85,6 +85,7 @@
     for (var i = 0; i < max; i++) {
       particles = particles.concat([getRandom(-5,5), getRandom(-5,5), getRandom(-5,5)]);
       particleVelocities = particleVelocities.concat([getRandom(-0.005,0.005), getRandom(-0.005,0.005), getRandom(-0.005,0.005)]);
+      // particleVelocities = particleVelocities.concat([getRandom(-0.5,0.5), getRandom(-0.5,0.5), getRandom(-0.5,0.5)]);
     }
     particleBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, particleBuffer);

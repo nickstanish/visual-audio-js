@@ -11,6 +11,7 @@ var AudioManager = function () {
   this.source = null;
   this.mediaPlayerID = "#media-player";
   this.audioChooserID = "#audio-chooser";
+  this.voiceButtonID = "#voice-chooser";
   
   try {
     this.audioContext = new AudioContext();
@@ -22,14 +23,43 @@ var AudioManager = function () {
   var canvas = document.getElementById("canvas");
 
   var $fileChooser = $(this.audioChooserID);
+  var $voiceChooser = $(this.voiceButtonID);
   var $playButton = $("#media-controls [data-control='play']");
   var $pauseButton = $("#media-controls [data-control='pause']");
   var $stopButton = $("#media-controls [data-control='stop']");
 
   $fileChooser.on("change", onFileChosen.bind(this));
+  $voiceChooser.on('click', onVoiceChosen.bind(this));
   $playButton.on("click", onPlayClicked.bind(this));
   $pauseButton.on("click", onPauseClicked.bind(this));
   $stopButton.on("click", onStopClicked.bind(this));
+
+  function onVoiceChosen (event) {
+    if (!navigator.getUserMedia) {
+      return alert("Your browser doesn't support this feature");
+    }
+    var constrants = {
+      audio: true
+    };
+    var callback = function (stream) {
+      var analyser = this.audioContext.createAnalyser();
+      analyser.smoothingTimeConstant = 0.85;
+      analyser.fftSize = 256;
+      this.source = this.audioContext.createMediaStreamSource(stream);
+      this.source.connect(analyser);
+      this.analyser = analyser;
+      this.status = 1;
+      this.setControlsToStarted();
+      this.setControlsToPlaying();
+
+
+    };
+    var errorCallback = function (error) {
+      console.error(error);
+    };
+    navigator.getUserMedia(constrants, callback.bind(this), errorCallback);
+
+  }
 
   function onFileChosen (event) {
     if (event.target.files.length !== 0) {
@@ -99,7 +129,8 @@ AudioManager.prototype.stop = function () {
 AudioManager.prototype.start = function (audioContext, buffer) {
   var audioBufferSouceNode = audioContext.createBufferSource();
   var analyser = audioContext.createAnalyser();
-  // analyser.smoothingTimeConstant = 0.85;
+  analyser.smoothingTimeConstant = 0.85;
+  analyser.fftSize = 256; 
   var self = this;
   //connect the source to the analyser
   audioBufferSouceNode.connect(analyser);
