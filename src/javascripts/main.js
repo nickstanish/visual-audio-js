@@ -27,18 +27,23 @@
       alert("Unable to initialize WebGL. Your browser may not support it.");
       gl = null;
     }
+
+    if (!gl.getExtension('OES_texture_float')) {
+      alert("Some necessary features are not supported by your hardware.");
+      gl = null;
+    }
     window.gl = gl;
     return gl;
   }
 
   var stats;
 
+
+
   var barBuffer;
-  var horizAspect = 480.0/640.0;
   var squareVerticesBuffer, squareVerticesColorBuffer;
   var perspectiveMatrix;
   var vertexPositionAttribute, vertexColorAttribute;
-  var linePositionsAttribute, lineVerticesBuffer, lineColorBuffer;
   var gl;
   var squareRotation = 0.0;
   var lastSquareUpdateTime;
@@ -50,10 +55,8 @@
   var zIncValue = 0.3;
   var mvMatrixStack = [];
   var shaderProgram;
-  var lineShader;
 
   var particles = [];
-  var particleVelocities = [];
   var particleBuffer;
   var particleShader;
 
@@ -62,34 +65,20 @@
 
   var audioManager = null;
 
+  var size = 128.0;
+  var textures = {
+    positionFrameBuffers: [],
+    positions: [],
+    velocities: [],
+    targetPosition: null,
+    targetVelocity: null
+  };
+  var pointLookupBuffer;
+  var lookupPoints;
+  var updatePositionShader, updatePositionVertices;
+
   function getRandom(min, max) {
     return Math.random() * (max - min) + min;
-  }
-
-  function moveParticles () {
-    var max = 10000;
-    for (var i = 0; i < max; i++) {
-      if (Math.abs(particles[i] + particleVelocities[i]) > 5.01) {
-        particleVelocities[i] = -particleVelocities[i];
-      }
-      
-      particles[i] = particles[i] + particleVelocities[i];
-    }
-    gl.bindBuffer(gl.ARRAY_BUFFER, particleBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(particles), gl.STATIC_DRAW);
-  }
-
-  function initParticles(){ 
-    var max = 5000;
-    
-    for (var i = 0; i < max; i++) {
-      particles = particles.concat([getRandom(-5,5), getRandom(-5,5), getRandom(-5,5)]);
-      particleVelocities = particleVelocities.concat([getRandom(-0.005,0.005), getRandom(-0.005,0.005), getRandom(-0.005,0.005)]);
-      // particleVelocities = particleVelocities.concat([getRandom(-0.5,0.5), getRandom(-0.5,0.5), getRandom(-0.5,0.5)]);
-    }
-    particleBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, particleBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(particles), gl.STATIC_DRAW);
   }
 
   function mvPushMatrix(m) {
@@ -168,26 +157,20 @@
       0.0,  0.0,  1.0,  1.0     // blue
     ];
 
-    var lineColors = [
-      1.0, 1.0, 1.0, 1.0,
-      1.0,  1.0,  1.0,  1.0
-    ];
     
     squareVerticesColorBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, squareVerticesColorBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
 
-    lineColorBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, lineColorBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(lineColors), gl.STATIC_DRAW);
-
-    initParticles();
 
   }
 
   window.frameCount = 0;
   function drawPoints(max) {
-    moveParticles();
+
+    // var frameBuffer = textures.positionFrameBuffers[textures.targetPosition];
+    var sourcePosition = textures.positions[0];
+
 
     gl.useProgram(particleShader);
     var pUniform = gl.getUniformLocation(particleShader, "uPMatrix");
@@ -199,22 +182,60 @@
     var frameUniform = gl.getUniformLocation(particleShader, "inFrame");
     gl.uniform1f(frameUniform, window.frameCount);
 
-
     var intensity = gl.getUniformLocation(particleShader, "intensity");
     gl.uniform1f(intensity, max);
   
-    
+    var texturePositions = gl.getUniformLocation(particleShader, "texturePositions");
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, sourcePosition);
+    gl.uniform1i(texturePositions, 0);
 
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, particleBuffer);
+    gl.bindBuffer(gl.ARRAY_BUFFER, pointLookupBuffer);
+    // gl.bindBuffer(gl.ARRAY_BUFFER, particleBuffer);
     gl.vertexAttribPointer(particlePositionAttribute, 3, gl.FLOAT, false, 0, 0);
 
-    gl.drawArrays(gl.POINTS, 0, particles.length / 3);
+    gl.drawArrays(gl.POINTS, 0, lookupPoints.length / 3);
+
+ /*
+    // update positions
+    gl.disable(gl.DEPTH_TEST);
+    gl.disable (gl.BLEND);
+    gl.useProgram(updatePositionShader);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
+    // gl.clear(gl.COLOR_BUFFER_BIT);
+
+    gl.viewport(0, 0, size, size);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, sourcePosition);
+    gl.uniform1i(gl.getUniformLocation(updatePositionShader, "texturePositions"), 0);
+
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, textures.velocities[1]);
+    gl.uniform1i(gl.getUniformLocation(updatePositionShader, "textureVelocities"), 1);
+
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, pointLookupBuffer);
+    // gl.bindBuffer(gl.ARRAY_BUFFER, particleBuffer);
+    gl.vertexAttribPointer(updatePositionVertices, 3, gl.FLOAT, false, 0, 0);
+
+    gl.drawArrays(gl.POINTS, 0, lookupPoints.length / 3);
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    
+
+*/    
+
+    // swap!
+    textures.targetPosition = Math.abs(textures.targetPosition - 1);
+
   }
 
   function drawScene() {
     resize();
     stats.begin();
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     
     
     setTimeout(function() {
@@ -259,29 +280,15 @@
       var barWidth = widthScale / bufferLength;
       var barPadding = barWidth * 0.2;
       
-
-      var points = [];
-
-      var domainData = audioManager.getTimeDomainData();
       var data = audioManager.getFrequencyData();
 
       var sliceWidth = 1.0 / data.length;
       var halfWidthScale = (widthScale / 2);
 
-      
-      
-      var x = 0;
-      var y = 0;
-      var z = 1;
+    
 
       for(var i = 0; i < data.length; i++) {
 
-           
-        var v = domainData[i] / 128 - 1; // [-1,1]
-        x = (i * sliceWidth - 0.5) * 6;
-        y = v;
-
-        points = points.concat([x, y, z]);
 
 
         var height = data[i] / 256; // [0, 1]
@@ -301,28 +308,9 @@
 
       }
 
+      max = (data[0] + data[1] + data[2] + data[3]) / 4.0 / 255.0;
+      window.max = max;
 
-      // linePositionsAttribute, lineVerticesBuffer
-      gl.useProgram(lineShader);
-       var pUniform = gl.getUniformLocation(lineShader, "uPMatrix");
-      gl.uniformMatrix4fv(pUniform, false, new Float32Array(perspectiveMatrix.flatten()));
-
-      var mvUniform = gl.getUniformLocation(lineShader, "uMVMatrix");
-      gl.uniformMatrix4fv(mvUniform, false, new Float32Array(camera.getModelViewMatrix().flatten()));
-
-      max = (domainData[0] + domainData[1] + domainData[2]) / 3.0 / 255.0;
-
-      lineVerticesBuffer = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, lineVerticesBuffer);
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(points), gl.STATIC_DRAW);
-
-      gl.bindBuffer(gl.ARRAY_BUFFER, lineVerticesBuffer);
-      gl.vertexAttribPointer(linePositionsAttribute, 3, gl.FLOAT, false, 0, 0);
-
-      // gl.bindBuffer(gl.ARRAY_BUFFER, lineColorBuffer);
-      // gl.vertexAttribPointer(vertexColorAttribute, 4, gl.FLOAT, false, 0, 0);
-
-      gl.drawArrays(gl.LINE_STRIP, 0, points.length / 3);
 
       barBuffer = gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER, barBuffer);
@@ -459,10 +447,101 @@
     
   }
 
+  function createAndSetupTexture() {
+    var texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+
+    // Set up texture so we can render any size image and so we are
+    // working with pixels.
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+    return texture;
+  }
+
+  function initParticleTextures() {
+    var numberOfPoints = size * size;
+    lookupPoints = new Float32Array(numberOfPoints * 3); // stored as vertices
+    var positionData = new Float32Array(numberOfPoints * 3); // stored as colors
+    var particleVelocities = new Float32Array(numberOfPoints * 3);
+    for (var i = 0, j = 0; i < numberOfPoints; i++, j += 3){
+      var position = {
+        x: (i % size) / size,
+        y: Math.floor(i / size) / size,
+        z: 0 // unused
+      };
+      lookupPoints[j] = position.x;
+      lookupPoints[j+1] = position.y;
+      lookupPoints[j+2] = position.z;
+
+      var particle = {
+        r: getRandom(-5,5),
+        g: getRandom(-5,5),
+        b: getRandom(-5,5),
+        a: 1 // unused
+      };
+      positionData[i*3 + 0] = particle.r;
+      positionData[i*3 + 1] = particle.g;
+      positionData[i*3 + 2] = particle.b;
+
+      positionData1[i*3 + 0] = particle.r;
+      positionData1[i*3 + 1] = particle.g;
+      positionData1[i*3 + 2] = particle.b;
+
+      var velocity = {
+        x: getRandom(-0.005,0.005),
+        y: getRandom(-0.005,0.005),
+        z: getRandom(-0.005,0.005)
+      };
+
+      particleVelocities[i*3 + 0] = velocity.x;
+      particleVelocities[i*3 + 1] = velocity.y;
+      particleVelocities[i*3 + 2] = velocity.z;
+
+    }
+    //   var textures = {
+    //   positions: [],
+    //   velocities: [],
+    //   targetPosition: null,
+    //   targetVelocity: null
+    // };
+    for (var i = 0; i < 2; i++) {
+      var texture = createAndSetupTexture();
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, size, size, 0, gl.RGB, gl.FLOAT, positionData);
+      textures.positions.push(texture);
+
+       // Create a framebuffer
+      var frameBuffer = gl.createFramebuffer();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
+
+      // Attach a texture to it.
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+      textures.positionFrameBuffers.push(frameBuffer);
+    }
+    for (var i = 0; i < 2; i++) {
+      textures.velocities.push(createAndSetupTexture());
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, size, size, 0, gl.RGB, gl.FLOAT, particleVelocities);
+    }
+
+    textures.targetPosition = 1;
+    
+
+    pointLookupBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, pointLookupBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, lookupPoints, gl.STATIC_DRAW);
+
+  }
+
+
+  
+
+
   function Camera () {
     // this.position = [0,0,-2];
     // this.position = [0,0,-72];
-    this.position = [0, 0, -8];
+    this.position = [0, 0, -9];
     this.pitch = 0;
     // this.pitch = 22;
 
@@ -472,11 +551,6 @@
   }
 
   Camera.prototype.getModelViewMatrix = function () {
-    // [0, 0, -39.50000000000029]
-    // main.js:338 21.400000000000034
-    // main.js:339 -16.19999999999996
-
-
     loadIdentity();
 
     mvRotate(-this.pitch, [1, 0, 0]);
@@ -488,6 +562,14 @@
   }
 
   var camera;
+
+  function createShader(vertexProgram, fragmentProgram) {
+    var shader = gl.createProgram();
+    gl.attachShader(shader, vertexProgram);
+    gl.attachShader(shader, fragmentProgram);
+    gl.linkProgram(shader);
+    return shader;
+  }
 
 
   function onLoad () {
@@ -517,28 +599,20 @@
     shaderManager.compileShaders(gl);
     initBuffers();
 
-    shaderProgram = gl.createProgram();
-    gl.attachShader(shaderProgram, shaderManager.vertex['simpleShader']);
-    gl.attachShader(shaderProgram, shaderManager.fragment['simpleShader']);
-    gl.linkProgram(shaderProgram);
+    shaderProgram = createShader(shaderManager.vertex['simpleShader'], shaderManager.fragment['simpleShader']);
+    particleShader = createShader(shaderManager.vertex['particleShader'], shaderManager.fragment['particleShader']);
+    barShader = createShader(shaderManager.vertex['barShader'], shaderManager.fragment['barShader']);
+    updatePositionShader = createShader(shaderManager.vertex['updatePositions'], shaderManager.fragment['updatePositions']);
 
-    lineShader = gl.createProgram();
-    gl.attachShader(lineShader, shaderManager.vertex['lineShader']);
-    gl.attachShader(lineShader, shaderManager.fragment['lineShader']);
-    gl.linkProgram(lineShader);
 
-    particleShader = gl.createProgram();
-    gl.attachShader(particleShader, shaderManager.vertex['particleShader']);
-    gl.attachShader(particleShader, shaderManager.fragment['particleShader']);
-    gl.linkProgram(particleShader);
 
-    barShader = gl.createProgram();
-    gl.attachShader(barShader, shaderManager.vertex['barShader']);
-    gl.attachShader(barShader, shaderManager.fragment['barShader']);
-    gl.linkProgram(barShader);
+    initParticleTextures();
 
 
     // gl.lineWidth(1);
+    gl.enable (gl.BLEND);
+    gl.blendFunc (gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
 
     
 
@@ -551,17 +625,10 @@
   
     vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
     vertexColorAttribute = gl.getAttribLocation(shaderProgram, "aVertexColor");
-
-
-
-    console.log(vertexPositionAttribute);
-    console.log(vertexColorAttribute);
     
     gl.enableVertexAttribArray(vertexPositionAttribute);
     gl.enableVertexAttribArray(vertexColorAttribute);
 
-    linePositionsAttribute = gl.getAttribLocation(lineShader, "inCoord");
-    gl.enableVertexAttribArray(linePositionsAttribute);
 
     particlePositionAttribute = gl.getAttribLocation(particleShader, "inCoord");
     gl.enableVertexAttribArray(particlePositionAttribute);
@@ -569,6 +636,10 @@
     gl.useProgram(barShader);
     barVerticesLocation = gl.getAttribLocation(barShader, "aVertexPosition");
     gl.enableVertexAttribArray(barVerticesLocation);
+
+    gl.useProgram(updatePositionShader);
+    updatePositionVertices = gl.getAttribLocation(updatePositionShader, "inCoord");
+    gl.enableVertexAttribArray(updatePositionVertices);
 
     // Only continue if WebGL is available and working
     // gl.viewport(0, 0, canvas.offsetWidth, canvas.offsetHeight);
@@ -594,8 +665,9 @@
         gl.canvas.height != height) {
        gl.canvas.width = width;
        gl.canvas.height = height;
-       gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+       
     }
+    gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
   }
 
 

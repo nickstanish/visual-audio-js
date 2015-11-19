@@ -48,6 +48,16 @@ var config = [
     type: TYPE_FRAGMENT,
     source: require('raw!bar.fragment.glsl')
   },
+  {
+    name: 'updatePositions',
+    type: TYPE_VERTEX,
+    source: require('raw!updatePositions.vertex.glsl')
+  },
+  {
+    name: 'updatePositions',
+    type: TYPE_FRAGMENT,
+    source: require('raw!updatePositions.fragment.glsl')
+  },
 ];
 
 var ShaderConfig = {}

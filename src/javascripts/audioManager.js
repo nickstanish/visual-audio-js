@@ -43,7 +43,7 @@ var AudioManager = function () {
     };
     var callback = function (stream) {
       var analyser = this.audioContext.createAnalyser();
-      analyser.smoothingTimeConstant = 0.85;
+      analyser.smoothingTimeConstant = 0.7;
       analyser.fftSize = 256;
       this.source = this.audioContext.createMediaStreamSource(stream);
       this.source.connect(analyser);
@@ -120,7 +120,12 @@ AudioManager.prototype.readCurrentFile = function () {
 AudioManager.prototype.stop = function () {
   this.status = 0;
   if (this.source) {
-    this.source.stop();
+    if (this.source.mediaStream) {
+      this.source.mediaStream.active = false;
+    } else {
+      this.source.stop();
+    }
+    
   }
   this.source = null;
   this.setControlsToStopped();
@@ -129,7 +134,7 @@ AudioManager.prototype.stop = function () {
 AudioManager.prototype.start = function (audioContext, buffer) {
   var audioBufferSouceNode = audioContext.createBufferSource();
   var analyser = audioContext.createAnalyser();
-  analyser.smoothingTimeConstant = 0.85;
+  analyser.smoothingTimeConstant = 0.70;
   analyser.fftSize = 256; 
   var self = this;
   //connect the source to the analyser
