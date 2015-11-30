@@ -120,7 +120,12 @@ AudioManager.prototype.readCurrentFile = function () {
 AudioManager.prototype.stop = function () {
   this.status = 0;
   if (this.source) {
-    this.source.stop();
+    if (this.source.mediaStream) {
+      this.source.mediaStream.active = false;
+      this.source.mediaStream = null;
+    } else {
+      this.source.stop();
+    }
   }
   this.source = null;
   this.setControlsToStopped();

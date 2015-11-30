@@ -34,11 +34,9 @@
   var stats;
 
   var barBuffer;
-  var horizAspect = 480.0/640.0;
   var squareVerticesBuffer, squareVerticesColorBuffer;
   var perspectiveMatrix;
   var vertexPositionAttribute, vertexColorAttribute;
-  var linePositionsAttribute, lineVerticesBuffer, lineColorBuffer;
   var gl;
   var squareRotation = 0.0;
   var lastSquareUpdateTime;
@@ -50,12 +48,45 @@
   var zIncValue = 0.3;
   var mvMatrixStack = [];
   var shaderProgram;
-  var lineShader;
 
-  var particles = [];
-  var particleVelocities = [];
-  var particleBuffer;
+  var particleSystem = {
+    positions: null,
+    velocities: null,
+    colors: null,
+    alive: null,
+    ages: null,
+    lifespans: null
+  };
+
+
+  var emitters = [{
+    rate: 10, // number to emit per time slice
+    lastEmit: null, // used with rate to determine how many to emit
+    lifespan: 1000, // lifespan of particle
+    max: null,
+    minDirection: {
+      x: -0.01,
+      y: -0.01,
+      z: -0.01
+    },
+    maxDirection: {
+      x: 0.01,
+      y: 0.01,
+      z: 0.01
+    },
+    position: {
+      x: 0,
+      y: 0,
+      z: 0
+    }
+  }];
+
+  var PARTICLE_ALIVE = 1;
+  var PARTICLE_DEAD = 0;
+
+  var particleBuffer, aliveBuffer, particleColorBuffer;
   var particleShader;
+  var particleAliveAttribute, particleColorAttribute;
 
   var barShader;
   var barVerticesLocation;
@@ -67,29 +98,133 @@
   }
 
   function moveParticles () {
-    var max = 10000;
-    for (var i = 0; i < max; i++) {
-      if (Math.abs(particles[i] + particleVelocities[i]) > 5.01) {
-        particleVelocities[i] = -particleVelocities[i];
+
+    var emitter = emitters[0];
+    var emitted = 0;
+
+    var particlesLength = particleSystem.alive.length;
+
+    for (var i = 0; i < particlesLength; i++) {
+      var j = i * 3;
+
+      if (particleSystem.alive[i] === PARTICLE_DEAD) {
+        // spawn particle
+        if (emitted < emitter.rate) {
+          var position = emitter.position;
+          var velocity = {
+            x: getRandom(emitter.minDirection.x, emitter.maxDirection.x),
+            y: getRandom(emitter.minDirection.y, emitter.maxDirection.y),
+            z: getRandom(emitter.minDirection.z, emitter.maxDirection.z)
+          };
+
+          
+
+          particleSystem.positions[j] = position.x;
+          particleSystem.positions[j+1] = position.y;
+          particleSystem.positions[j+2] = position.z;
+
+          particleSystem.velocities[j] = velocity.x;
+          particleSystem.velocities[j+1] = velocity.y;
+          particleSystem.velocities[j+2] = velocity.z;
+
+          particleSystem.alive[i] = PARTICLE_ALIVE;
+          particleSystem.ages[i] = 0;
+          particleSystem.lifespans[i] = emitter.lifespan;
+          emitted++;
+
+        }
+        
+      } else {
+        // update particle
+        particleSystem.positions[j] += particleSystem.velocities[j];
+        particleSystem.positions[j+1] += particleSystem.velocities[j+1];
+        particleSystem.positions[j+2] += particleSystem.velocities[j+2];
+
+        if (particleSystem.ages[i] > particleSystem.lifespans[i]) {
+          particleSystem.alive[i] = PARTICLE_DEAD;
+        }
+        particleSystem.ages[i]++;
       }
       
-      particles[i] = particles[i] + particleVelocities[i];
     }
     gl.bindBuffer(gl.ARRAY_BUFFER, particleBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(particles), gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, particleSystem.positions, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, aliveBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, particleSystem.alive, gl.STATIC_DRAW);
   }
 
   function initParticles(){ 
-    var max = 5000;
+    var max = 30000;
+    particleSystem.positions = new Float32Array(max * 3);
+    particleSystem.velocities = new Float32Array(max * 3);
+    particleSystem.colors = new Float32Array(max * 3);
+    particleSystem.alive = new Float32Array(max);
+    particleSystem.ages = new Float32Array(max);
+    particleSystem.lifespans = new Float32Array(max);
     
-    for (var i = 0; i < max; i++) {
-      particles = particles.concat([getRandom(-5,5), getRandom(-5,5), getRandom(-5,5)]);
-      particleVelocities = particleVelocities.concat([getRandom(-0.005,0.005), getRandom(-0.005,0.005), getRandom(-0.005,0.005)]);
-      // particleVelocities = particleVelocities.concat([getRandom(-0.5,0.5), getRandom(-0.5,0.5), getRandom(-0.5,0.5)]);
+    for (var i = 0, j = 0; i < max; i++, j +=3) {
+      /*
+      var position = {
+        x: getRandom(-5,5),
+        y: getRandom(-5,5),
+        z: getRandom(-5,5)
+      };
+      */
+      /*
+      var velocity = {
+        x: getRandom(-0.005,0.005),
+        y: getRandom(-0.005,0.005),
+        z: getRandom(-0.005,0.005)
+      };
+      */
+
+      var position = {
+        x: 0, 
+        y: 0,
+        z: 0
+      };
+      var velocity = {
+        x: 0, 
+        y: 0,
+        z: 0
+      };
+
+      var color = {
+        r: getRandom(0,1),
+        g: getRandom(0,1),
+        b: getRandom(0,1)
+      };
+
+      var alive = PARTICLE_DEAD; 
+
+      particleSystem.positions[j] = position.x;
+      particleSystem.positions[j+1] = position.y;
+      particleSystem.positions[j+2] = position.z;
+
+      particleSystem.velocities[j] = velocity.x;
+      particleSystem.velocities[j+1] = velocity.y;
+      particleSystem.velocities[j+2] = velocity.z;
+
+      particleSystem.colors[j] = color.r;
+      particleSystem.colors[j+1] = color.g;
+      particleSystem.colors[j+2] = color.b;
+
+      particleSystem.alive[j] = alive;
+
     }
+
     particleBuffer = gl.createBuffer();
+    aliveBuffer = gl.createBuffer();
+    particleColorBuffer = gl.createBuffer();
+
     gl.bindBuffer(gl.ARRAY_BUFFER, particleBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(particles), gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, particleSystem.positions, gl.STATIC_DRAW);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, aliveBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, particleSystem.alive, gl.STATIC_DRAW);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, particleColorBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, particleSystem.colors, gl.STATIC_DRAW);
   }
 
   function mvPushMatrix(m) {
@@ -168,18 +303,11 @@
       0.0,  0.0,  1.0,  1.0     // blue
     ];
 
-    var lineColors = [
-      1.0, 1.0, 1.0, 1.0,
-      1.0,  1.0,  1.0,  1.0
-    ];
+
     
     squareVerticesColorBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, squareVerticesColorBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
-
-    lineColorBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, lineColorBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(lineColors), gl.STATIC_DRAW);
 
     initParticles();
 
@@ -202,14 +330,26 @@
 
     var intensity = gl.getUniformLocation(particleShader, "intensity");
     gl.uniform1f(intensity, max);
-  
-    
 
 
     gl.bindBuffer(gl.ARRAY_BUFFER, particleBuffer);
+    gl.enableVertexAttribArray(particlePositionAttribute);
     gl.vertexAttribPointer(particlePositionAttribute, 3, gl.FLOAT, false, 0, 0);
 
-    gl.drawArrays(gl.POINTS, 0, particles.length / 3);
+    gl.bindBuffer(gl.ARRAY_BUFFER, aliveBuffer);
+    gl.enableVertexAttribArray(particleAliveAttribute);
+    gl.vertexAttribPointer(particleAliveAttribute, 1, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, particleColorBuffer);
+    gl.enableVertexAttribArray(particleColorAttribute);
+    gl.vertexAttribPointer(particleColorAttribute, 3, gl.FLOAT, false, 0, 0);
+
+    gl.drawArrays(gl.POINTS, 0, particleSystem.positions.length / 3);
+
+
+    gl.disableVertexAttribArray(particleColorAttribute);
+    gl.disableVertexAttribArray(particleAliveAttribute);
+    gl.disableVertexAttribArray(particlePositionAttribute);
   }
 
   function drawScene() {
@@ -240,13 +380,20 @@
     // mvTranslate([squareXOffset, squareYOffset, squareZOffset]);
     
     gl.bindBuffer(gl.ARRAY_BUFFER, squareVerticesBuffer);
+    gl.enableVertexAttribArray(vertexPositionAttribute);
     gl.vertexAttribPointer(vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, squareVerticesColorBuffer);
+    gl.enableVertexAttribArray(vertexColorAttribute);
     gl.vertexAttribPointer(vertexColorAttribute, 4, gl.FLOAT, false, 0, 0);
+
+    
 
     setMatrixUniforms();
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+    gl.disableVertexAttribArray(vertexColorAttribute);
+    gl.disableVertexAttribArray(vertexPositionAttribute);
 
     // mvPopMatrix();
     var bars = [];
@@ -258,31 +405,11 @@
       var widthScale = 8.0;
       var barWidth = widthScale / bufferLength;
       var barPadding = barWidth * 0.2;
-      
 
-      var points = [];
-
-      var domainData = audioManager.getTimeDomainData();
       var data = audioManager.getFrequencyData();
-
-      var sliceWidth = 1.0 / data.length;
       var halfWidthScale = (widthScale / 2);
 
-      
-      
-      var x = 0;
-      var y = 0;
-      var z = 1;
-
       for(var i = 0; i < data.length; i++) {
-
-           
-        var v = domainData[i] / 128 - 1; // [-1,1]
-        x = (i * sliceWidth - 0.5) * 6;
-        y = v;
-
-        points = points.concat([x, y, z]);
-
 
         var height = data[i] / 256; // [0, 1]
         var bottom = 0;
@@ -302,27 +429,8 @@
       }
 
 
-      // linePositionsAttribute, lineVerticesBuffer
-      gl.useProgram(lineShader);
-       var pUniform = gl.getUniformLocation(lineShader, "uPMatrix");
-      gl.uniformMatrix4fv(pUniform, false, new Float32Array(perspectiveMatrix.flatten()));
+      max = (data[0] + data[1] + data[2]) / 3.0 / 255.0;
 
-      var mvUniform = gl.getUniformLocation(lineShader, "uMVMatrix");
-      gl.uniformMatrix4fv(mvUniform, false, new Float32Array(camera.getModelViewMatrix().flatten()));
-
-      max = (domainData[0] + domainData[1] + domainData[2]) / 3.0 / 255.0;
-
-      lineVerticesBuffer = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, lineVerticesBuffer);
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(points), gl.STATIC_DRAW);
-
-      gl.bindBuffer(gl.ARRAY_BUFFER, lineVerticesBuffer);
-      gl.vertexAttribPointer(linePositionsAttribute, 3, gl.FLOAT, false, 0, 0);
-
-      // gl.bindBuffer(gl.ARRAY_BUFFER, lineColorBuffer);
-      // gl.vertexAttribPointer(vertexColorAttribute, 4, gl.FLOAT, false, 0, 0);
-
-      gl.drawArrays(gl.LINE_STRIP, 0, points.length / 3);
 
       barBuffer = gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER, barBuffer);
@@ -347,9 +455,12 @@
         gl.uniformMatrix4fv(mUniform, false, new Float32Array(modelMatrix.flatten()));
 
         gl.bindBuffer(gl.ARRAY_BUFFER, barBuffer);
+        gl.enableVertexAttribArray(barVerticesLocation);
         gl.vertexAttribPointer(barVerticesLocation, 3, gl.FLOAT, false, 0, 0);
 
         gl.drawArrays(gl.TRIANGLES, 0, bars.length / 3.0);
+
+        gl.disableVertexAttribArray(barVerticesLocation);
       })()
 
       
@@ -415,8 +526,6 @@
       }
     };
 
-    console.log(keyMap[key]);
-
     var pitch_delta = 0.1;
     var yaw_delta = 0.1;
     var movement_delta = 0.1;
@@ -462,7 +571,7 @@
   function Camera () {
     // this.position = [0,0,-2];
     // this.position = [0,0,-72];
-    this.position = [0, 0, -8];
+    this.position = [0, 0, -9];
     this.pitch = 0;
     // this.pitch = 22;
 
@@ -522,11 +631,6 @@
     gl.attachShader(shaderProgram, shaderManager.fragment['simpleShader']);
     gl.linkProgram(shaderProgram);
 
-    lineShader = gl.createProgram();
-    gl.attachShader(lineShader, shaderManager.vertex['lineShader']);
-    gl.attachShader(lineShader, shaderManager.fragment['lineShader']);
-    gl.linkProgram(lineShader);
-
     particleShader = gl.createProgram();
     gl.attachShader(particleShader, shaderManager.vertex['particleShader']);
     gl.attachShader(particleShader, shaderManager.fragment['particleShader']);
@@ -537,10 +641,8 @@
     gl.attachShader(barShader, shaderManager.fragment['barShader']);
     gl.linkProgram(barShader);
 
-
-    // gl.lineWidth(1);
-
-    
+    gl.enable (gl.BLEND);
+    gl.blendFunc (gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
     // If creating the shader program failed, alert
   
@@ -552,23 +654,13 @@
     vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
     vertexColorAttribute = gl.getAttribLocation(shaderProgram, "aVertexColor");
 
-
-
-    console.log(vertexPositionAttribute);
-    console.log(vertexColorAttribute);
-    
-    gl.enableVertexAttribArray(vertexPositionAttribute);
-    gl.enableVertexAttribArray(vertexColorAttribute);
-
-    linePositionsAttribute = gl.getAttribLocation(lineShader, "inCoord");
-    gl.enableVertexAttribArray(linePositionsAttribute);
-
+    gl.useProgram(particleShader);
     particlePositionAttribute = gl.getAttribLocation(particleShader, "inCoord");
-    gl.enableVertexAttribArray(particlePositionAttribute);
+    particleAliveAttribute = gl.getAttribLocation(particleShader, "inAlive");
+    particleColorAttribute = gl.getAttribLocation(particleShader, "inColor");
 
     gl.useProgram(barShader);
     barVerticesLocation = gl.getAttribLocation(barShader, "aVertexPosition");
-    gl.enableVertexAttribArray(barVerticesLocation);
 
     // Only continue if WebGL is available and working
     // gl.viewport(0, 0, canvas.offsetWidth, canvas.offsetHeight);

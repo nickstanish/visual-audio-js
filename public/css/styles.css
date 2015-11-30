@@ -74,9 +74,15 @@ canvas#canvas {
 }
 #audioFile {
   visibility: hidden;
+  height: 0;
+  width: 0;
+  display: inline;
 }
 #audio-chooser.no-select {
   display: none;
+}
+#voice-chooser {
+  margin-left: 10px;
 }
 .user-select {
   user-select: none;
