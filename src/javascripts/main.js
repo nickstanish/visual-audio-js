@@ -115,7 +115,7 @@
       gl.bindTexture(gl.TEXTURE_2D, null);
       smokeReady = true;
     };
-    smokeImage.src = "/public/images/smoke.png";
+    smokeImage.src = "public/images/smoke.png";
   }
   function moveParticles () {
 
