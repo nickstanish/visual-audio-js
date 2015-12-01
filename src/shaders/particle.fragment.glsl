@@ -10,6 +10,9 @@ varying vec3 color;
 
 varying float alive;
 uniform float intensity;
+varying float age;
+
+uniform sampler2D inTexture;
 
       
 void main(void) {
@@ -21,6 +24,9 @@ void main(void) {
   if (intensity >= 0.0) {
     alpha = intensity;
   }
-  
-  gl_FragColor = vec4(color, alpha);
+
+  alpha = (1.0 - age) * alpha;
+
+  // gl_FragColor = vec4(color, texAlpha);
+  gl_FragColor = vec4((texture2D(inTexture, gl_PointCoord.st).rgb * color), alpha);
 }

@@ -60,7 +60,7 @@
 
 
   var emitters = [{
-    rate: 10, // number to emit per time slice
+    rate: 3, // number to emit per time slice
     lastEmit: null, // used with rate to determine how many to emit
     lifespan: 1000, // lifespan of particle
     max: null,
@@ -84,9 +84,12 @@
   var PARTICLE_ALIVE = 1;
   var PARTICLE_DEAD = 0;
 
-  var particleBuffer, aliveBuffer, particleColorBuffer;
+  var particleBuffer, aliveBuffer, particleColorBuffer, particleAgeBuffer;
   var particleShader;
-  var particleAliveAttribute, particleColorAttribute;
+  var particleAliveAttribute, particleColorAttribute, particleAgeAttribute;
+
+  var smokeImage, smokeTexture;
+  var smokeReady = false;
 
   var barShader;
   var barVerticesLocation;
@@ -97,6 +100,23 @@
     return Math.random() * (max - min) + min;
   }
 
+  function initTextures() {
+    smokeTexture = gl.createTexture();
+    smokeImage = new Image();
+    smokeImage.onload = function() { 
+      gl.bindTexture(gl.TEXTURE_2D, smokeTexture);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, smokeImage);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      // Prevents s-coordinate wrapping (repeating).
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      // Prevents t-coordinate wrapping (repeating).
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.bindTexture(gl.TEXTURE_2D, null);
+      smokeReady = true;
+    };
+    smokeImage.src = "/public/images/smoke.png";
+  }
   function moveParticles () {
 
     var emitter = emitters[0];
@@ -151,10 +171,12 @@
     gl.bufferData(gl.ARRAY_BUFFER, particleSystem.positions, gl.STATIC_DRAW);
     gl.bindBuffer(gl.ARRAY_BUFFER, aliveBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, particleSystem.alive, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, particleAgeBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, particleSystem.ages, gl.STATIC_DRAW);
   }
 
   function initParticles(){ 
-    var max = 30000;
+    var max = 10000;
     particleSystem.positions = new Float32Array(max * 3);
     particleSystem.velocities = new Float32Array(max * 3);
     particleSystem.colors = new Float32Array(max * 3);
@@ -188,12 +210,20 @@
         y: 0,
         z: 0
       };
-
+      
       var color = {
         r: getRandom(0,1),
         g: getRandom(0,1),
         b: getRandom(0,1)
       };
+      
+      /*
+      var color = {
+        r: 1,
+        g: 1,
+        b: 1
+      };
+      */
 
       var alive = PARTICLE_DEAD; 
 
@@ -216,6 +246,7 @@
     particleBuffer = gl.createBuffer();
     aliveBuffer = gl.createBuffer();
     particleColorBuffer = gl.createBuffer();
+    particleAgeBuffer = gl.createBuffer();
 
     gl.bindBuffer(gl.ARRAY_BUFFER, particleBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, particleSystem.positions, gl.STATIC_DRAW);
@@ -225,6 +256,9 @@
 
     gl.bindBuffer(gl.ARRAY_BUFFER, particleColorBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, particleSystem.colors, gl.STATIC_DRAW);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, particleAgeBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, particleSystem.ages, gl.STATIC_DRAW);
   }
 
   function mvPushMatrix(m) {
@@ -284,33 +318,8 @@
   }
 
   function initBuffers() {
-    squareVerticesBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, squareVerticesBuffer);
-    
-    var vertices = [
-      1.0,  1.0,  0.0,
-      -1.0, 1.0,  0.0,
-      1.0,  -1.0, 0.0,
-      -1.0, -1.0, 0.0
-    ];
-    
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-
-    var colors = [
-      1.0,  1.0,  1.0,  1.0,    // white
-      1.0,  0.0,  0.0,  1.0,    // red
-      0.0,  1.0,  0.0,  1.0,    // green
-      0.0,  0.0,  1.0,  1.0     // blue
-    ];
-
-
-    
-    squareVerticesColorBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, squareVerticesColorBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
-
+    initTextures();
     initParticles();
-
   }
 
   window.frameCount = 0;
@@ -327,9 +336,14 @@
     var frameUniform = gl.getUniformLocation(particleShader, "inFrame");
     gl.uniform1f(frameUniform, window.frameCount);
 
-
     var intensity = gl.getUniformLocation(particleShader, "intensity");
     gl.uniform1f(intensity, max);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, smokeTexture);
+    gl.uniform1i(gl.getUniformLocation(particleShader, "inTexture"), 0);
+
+    
 
 
     gl.bindBuffer(gl.ARRAY_BUFFER, particleBuffer);
@@ -344,12 +358,19 @@
     gl.enableVertexAttribArray(particleColorAttribute);
     gl.vertexAttribPointer(particleColorAttribute, 3, gl.FLOAT, false, 0, 0);
 
+    gl.bindBuffer(gl.ARRAY_BUFFER, particleAgeBuffer);
+    gl.enableVertexAttribArray(particleAgeAttribute);
+    gl.vertexAttribPointer(particleAgeAttribute, 1, gl.FLOAT, false, 0, 0);
+
     gl.drawArrays(gl.POINTS, 0, particleSystem.positions.length / 3);
 
 
+    gl.disableVertexAttribArray(particleAgeAttribute);
     gl.disableVertexAttribArray(particleColorAttribute);
     gl.disableVertexAttribArray(particleAliveAttribute);
     gl.disableVertexAttribArray(particlePositionAttribute);
+
+    
   }
 
   function drawScene() {
@@ -363,37 +384,8 @@
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    gl.useProgram(shaderProgram);
-    // 16:9
-    // 4:3
     var aspect = canvas.clientWidth / canvas.clientHeight;
     perspectiveMatrix = makePerspective(50, aspect, 0.1, 100.0);
-    
-    // loadIdentity();
-     // mvRotate(squareRotation, [1, 0, 1]);
-     // mvTranslate([window.cx || -6, window.cy || -7, window.cz || -18.0]);
-
-   // Save the current matrix, then rotate before we draw.
-
-    // mvPushMatrix();
-   
-    // mvTranslate([squareXOffset, squareYOffset, squareZOffset]);
-    
-    gl.bindBuffer(gl.ARRAY_BUFFER, squareVerticesBuffer);
-    gl.enableVertexAttribArray(vertexPositionAttribute);
-    gl.vertexAttribPointer(vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, squareVerticesColorBuffer);
-    gl.enableVertexAttribArray(vertexColorAttribute);
-    gl.vertexAttribPointer(vertexColorAttribute, 4, gl.FLOAT, false, 0, 0);
-
-    
-
-    setMatrixUniforms();
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-
-    gl.disableVertexAttribArray(vertexColorAttribute);
-    gl.disableVertexAttribArray(vertexPositionAttribute);
 
     // mvPopMatrix();
     var bars = [];
@@ -465,7 +457,9 @@
 
       
     }
-    drawPoints(max);
+    if (smokeReady) {
+      drawPoints(max);
+    }
 
     var currentTime = (new Date).getTime();
     if (lastSquareUpdateTime) {
@@ -561,37 +555,23 @@
       break;
 
     }
-
-    console.log(camera.position);
-    console.log(camera.pitch);
-    console.log(camera.yaw);
     
   }
 
   function Camera () {
-    // this.position = [0,0,-2];
-    // this.position = [0,0,-72];
     this.position = [0, 0, -9];
     this.pitch = 0;
-    // this.pitch = 22;
-
     this.yaw = 0;
-    // this.yaw = 20;
     
   }
 
   Camera.prototype.getModelViewMatrix = function () {
-    // [0, 0, -39.50000000000029]
-    // main.js:338 21.400000000000034
-    // main.js:339 -16.19999999999996
-
 
     loadIdentity();
 
     mvRotate(-this.pitch, [1, 0, 0]);
     mvRotate(this.yaw, [0, 1, 0]);
     mvTranslate(this.position);
-    
 
     return mvMatrix;
   }
@@ -626,11 +606,6 @@
     shaderManager.compileShaders(gl);
     initBuffers();
 
-    shaderProgram = gl.createProgram();
-    gl.attachShader(shaderProgram, shaderManager.vertex['simpleShader']);
-    gl.attachShader(shaderProgram, shaderManager.fragment['simpleShader']);
-    gl.linkProgram(shaderProgram);
-
     particleShader = gl.createProgram();
     gl.attachShader(particleShader, shaderManager.vertex['particleShader']);
     gl.attachShader(particleShader, shaderManager.fragment['particleShader']);
@@ -642,22 +617,17 @@
     gl.linkProgram(barShader);
 
     gl.enable (gl.BLEND);
-    gl.blendFunc (gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-
-    // If creating the shader program failed, alert
-  
-    if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
-      alert("Unable to initialize the shader program.");
-    }
-    gl.useProgram(shaderProgram);
-  
-    vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
-    vertexColorAttribute = gl.getAttribLocation(shaderProgram, "aVertexColor");
+    gl.blendEquation( gl.FUNC_ADD );
+    // gl.blendFunc( gl.SRC_ALPHA, gl.DST_ALPHA );
+    // gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+    // gl.blendFunc( gl.SRC_ALPHA, gl.ONE_MINUS_DST_ALPHA );
 
     gl.useProgram(particleShader);
     particlePositionAttribute = gl.getAttribLocation(particleShader, "inCoord");
     particleAliveAttribute = gl.getAttribLocation(particleShader, "inAlive");
     particleColorAttribute = gl.getAttribLocation(particleShader, "inColor");
+    particleAgeAttribute = gl.getAttribLocation(particleShader, "inAge");
 
     gl.useProgram(barShader);
     barVerticesLocation = gl.getAttribLocation(barShader, "aVertexPosition");
@@ -669,9 +639,9 @@
       // Set clear color to black, fully opaque
       gl.clearColor(0.0, 0.0, 0.0, 1.0);
       // Enable depth testing
-      gl.enable(gl.DEPTH_TEST);
+      // gl.enable(gl.DEPTH_TEST);
       // Near things obscure far things
-      gl.depthFunc(gl.LEQUAL);
+      // gl.depthFunc(gl.LEQUAL);
       // Clear the color as well as the depth buffer.
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       
