@@ -9,7 +9,7 @@ varying vec2 coord;
 varying vec3 color;
 
 varying float alive;
-uniform float intensity;
+
 varying float age;
 
 uniform sampler2D inTexture;
@@ -21,9 +21,11 @@ void main(void) {
   }
 
   float alpha = 1.0;
-  if (intensity >= 0.0) {
-    alpha = intensity;
-  }
+  
+  // if (intensity >= 0.0) {
+  //  alpha = intensity;
+  // }
+  
 
   alpha = (1.0 - age) * alpha;
 

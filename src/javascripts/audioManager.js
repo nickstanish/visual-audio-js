@@ -16,6 +16,7 @@ var AudioManager = function () {
   try {
     this.audioContext = new AudioContext();
     this.analyser = null;
+    this.lowAnalyser = null;
   } catch (e) {
     console.log(e);
   }
@@ -42,17 +43,11 @@ var AudioManager = function () {
       audio: true
     };
     var callback = function (stream) {
-      var analyser = this.audioContext.createAnalyser();
-      analyser.smoothingTimeConstant = 0.85;
-      analyser.fftSize = 256;
       this.source = this.audioContext.createMediaStreamSource(stream);
-      this.source.connect(analyser);
-      this.analyser = analyser;
+      this.setupAudioNodes(this.source, null);
       this.status = 1;
       this.setControlsToStarted();
       this.setControlsToPlaying();
-
-
     };
     var errorCallback = function (error) {
       console.error(error);
@@ -90,6 +85,35 @@ var AudioManager = function () {
 
 };
 
+AudioManager.prototype.createDefaultAnalyser = function () {
+  var analyser = this.audioContext.createAnalyser();
+  analyser.smoothingTimeConstant = 0.85;
+  analyser.fftSize = 256; 
+  return analyser;
+};
+
+AudioManager.prototype.setupAudioNodes = function (source, destination) {
+  var audioContext = this.audioContext;
+  var analyser = this.createDefaultAnalyser();
+  var lowAnalyser = this.createDefaultAnalyser();
+
+  var filter = audioContext.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = 440;
+
+  source.connect(analyser);
+  if (destination) {
+    analyser.connect(destination);
+  }
+
+  analyser.connect(filter);
+  filter.connect(lowAnalyser);
+  
+  this.analyser = analyser;
+  this.lowAnalyser = lowAnalyser;
+  
+};
+
 AudioManager.prototype.readCurrentFile = function () {
   
   var self = this;
@@ -99,10 +123,9 @@ AudioManager.prototype.readCurrentFile = function () {
     var fileResult = e.target.result;
     var audioContext = self.audioContext;
     if (audioContext === null) {
-        return;
+      return;
     };
     audioContext.decodeAudioData(fileResult, function (buffer) {
-        // that._visualize(audioContext, buffer);
       console.log("successfully loaded file");
       self.setControlsToStarted();
       self.start.call(self, audioContext, buffer);
@@ -119,42 +142,44 @@ AudioManager.prototype.readCurrentFile = function () {
 
 AudioManager.prototype.stop = function () {
   this.status = 0;
+  $("#now-playing").text(null);
   if (this.source) {
     if (this.source.mediaStream) {
-      this.source.mediaStream.active = false;
+      var mediaStream = this.source.mediaStream;
+      mediaStream.active = false;
+      if (mediaStream.getAudioTracks()) {
+        // this corrects record light still being visible
+        for (var i = 0; i < mediaStream.getAudioTracks().length; i++){
+          if (mediaStream.getAudioTracks()[i].stop) {
+            mediaStream.getAudioTracks()[i].stop();  
+          }
+        }
+      }
+      
       this.source.mediaStream = null;
     } else {
       this.source.stop();
     }
   }
+  // reset the audio input form so it can be submitted again
+  $(this.audioChooserID).wrap('<form>').closest('form').get(0).reset();
+  $(this.audioChooserID).unwrap();
   this.source = null;
   this.setControlsToStopped();
 };
 
 AudioManager.prototype.start = function (audioContext, buffer) {
-  var audioBufferSouceNode = audioContext.createBufferSource();
-  var analyser = audioContext.createAnalyser();
-  analyser.smoothingTimeConstant = 0.85;
-  analyser.fftSize = 256; 
   var self = this;
-  //connect the source to the analyser
-  audioBufferSouceNode.connect(analyser);
-  //connect the analyser to the destination(the speaker), or we won't hear the sound
-  analyser.connect(audioContext.destination);
-  //then assign the buffer to the buffer source node
+  var audioBufferSouceNode = audioContext.createBufferSource();
   audioBufferSouceNode.buffer = buffer;
-  //play the source
+
+  this.setupAudioNodes(audioBufferSouceNode, audioContext.destination);
+
   if (!audioBufferSouceNode.start) {
       audioBufferSouceNode.start = audioBufferSouceNode.noteOn //in old browsers use noteOn method
       audioBufferSouceNode.stop = audioBufferSouceNode.noteOff //in old browsers use noteOn method
   };
-  //stop the previous sound if any
-  // if (this.animationId !== null) {
-  // cancelAnimationFrame(this.animationId);
-  //}
-  if (this.source !== null) {
-      // this.source.stop(0);
-  }
+
   audioBufferSouceNode.start(0);
   this.status = 1;
   this.source = audioBufferSouceNode;
@@ -163,14 +188,8 @@ AudioManager.prototype.start = function (audioContext, buffer) {
     self.status = 0;
     self.source = null;
     self.setControlsToStopped();
-    // that._audioEnd(that);
   };
   this.setControlsToPlaying();
-  // this._updateInfo('Playing ' + this.fileName, false);
-  // this.info = 'Playing ' + this.fileName;
-  // document.getElementById('fileWrapper').style.opacity = 0.2;
-  // this._drawSpectrum(analyser);
-  this.analyser = analyser;
 };
 
 AudioManager.prototype.setControlsToStarted = function () {
@@ -209,7 +228,16 @@ AudioManager.prototype.getTimeDomainData = function () {
 };
 AudioManager.prototype.getFrequencyData = function () {
   var analyser = this.analyser;
+  
+  var bufferLength = analyser.frequencyBinCount;
+  var data = new Uint8Array(bufferLength);
+  analyser.getByteFrequencyData(data);
+  return data;
+};
 
+AudioManager.prototype.getLowFrequencyData = function () {
+  var analyser = this.lowAnalyser;
+  
   var bufferLength = analyser.frequencyBinCount;
   var data = new Uint8Array(bufferLength);
   analyser.getByteFrequencyData(data);

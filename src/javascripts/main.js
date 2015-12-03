@@ -3,10 +3,7 @@
 *
 */
 
-
 (function () {
-  // https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Getting_started_with_WebGL
-  // https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Animating_objects_with_WebGL
   var polyfill = require("polyfills");
   polyfill();
 
@@ -60,7 +57,7 @@
 
 
   var emitters = [{
-    rate: 3, // number to emit per time slice
+    rate: 2, // number to emit per time slice
     lastEmit: null, // used with rate to determine how many to emit
     lifespan: 1000, // lifespan of particle
     max: null,
@@ -83,6 +80,7 @@
 
   var PARTICLE_ALIVE = 1;
   var PARTICLE_DEAD = 0;
+  var animationFrameDelay = 1000 / 60; 
 
   var particleBuffer, aliveBuffer, particleColorBuffer, particleAgeBuffer;
   var particleShader;
@@ -176,7 +174,7 @@
   }
 
   function initParticles(){ 
-    var max = 10000;
+    var max = 5000;
     particleSystem.positions = new Float32Array(max * 3);
     particleSystem.velocities = new Float32Array(max * 3);
     particleSystem.colors = new Float32Array(max * 3);
@@ -261,23 +259,6 @@
     gl.bufferData(gl.ARRAY_BUFFER, particleSystem.ages, gl.STATIC_DRAW);
   }
 
-  function mvPushMatrix(m) {
-    if (m) {
-      mvMatrixStack.push(m.dup());
-      mvMatrix = m.dup();
-    } else {
-      mvMatrixStack.push(mvMatrix.dup());
-    }
-  }
-
-  function mvPopMatrix() {
-    if (!mvMatrixStack.length) {
-      throw("Can't pop from an empty matrix stack.");
-    }
-    
-    mvMatrix = mvMatrixStack.pop();
-    return mvMatrix;
-  }
 
   function mvRotate(angle, v) {
     var inRadians = angle * Math.PI / 180.0;
@@ -299,33 +280,14 @@
     multMatrix(Matrix.Translation($V([v[0], v[1], v[2]])).ensure4x4());
   }
 
-  function setMatrixUniforms() {
-    var pUniform = gl.getUniformLocation(shaderProgram, "uPMatrix");
-    gl.uniformMatrix4fv(pUniform, false, new Float32Array(perspectiveMatrix.flatten()));
-
-    var mvUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
-    gl.uniformMatrix4fv(mvUniform, false, new Float32Array(camera.getModelViewMatrix().flatten()));
-  
-    var mUniform = gl.getUniformLocation(shaderProgram, "uMMatrix");
-    var modelMatrix = Matrix.I(4);
-    var inRadians = squareRotation * Math.PI / 180.0;
-    var v = [1, 0, 1];
-    
-    var m = Matrix.Rotation(inRadians, $V([v[0], v[1], v[2]])).ensure4x4();
-    modelMatrix = modelMatrix.x(m);
-    gl.uniformMatrix4fv(mUniform, false, new Float32Array(modelMatrix.flatten()));
-  
-  }
-
   function initBuffers() {
     initTextures();
     initParticles();
   }
 
   window.frameCount = 0;
+  window.animationCount = 0;
   function drawPoints(max) {
-    moveParticles();
-
     gl.useProgram(particleShader);
     var pUniform = gl.getUniformLocation(particleShader, "uPMatrix");
     gl.uniformMatrix4fv(pUniform, false, new Float32Array(perspectiveMatrix.flatten()));
@@ -373,6 +335,10 @@
     
   }
 
+  function animate() {
+    moveParticles();
+  }
+
   function drawScene() {
     resize();
     stats.begin();
@@ -387,9 +353,8 @@
     var aspect = canvas.clientWidth / canvas.clientHeight;
     perspectiveMatrix = makePerspective(50, aspect, 0.1, 100.0);
 
-    // mvPopMatrix();
     var bars = [];
-    var max = -1;
+    var level = -1;
 
     if (audioManager && audioManager.isPlaying()) {
 
@@ -401,27 +366,31 @@
       var data = audioManager.getFrequencyData();
       var halfWidthScale = (widthScale / 2);
 
-      for(var i = 0; i < data.length; i++) {
+      if (data && data.length > 0){
+        level = 0;
+        for(var i = 0; i < data.length; i++) {
+          var datum = data[i] / 256;
+          level += datum;
 
-        var height = data[i] / 256; // [0, 1]
-        var bottom = 0;
-        var x1 = (i * (barWidth)) - halfWidthScale;
-        var x2 = x1 + (barWidth - barPadding);
-        var z = 1;
-        var bar = [
-          x1, height, z,
-          x1, bottom, z,
-          x2, bottom, z,
-          x2, height, z,
-          x1, height, z,
-          x2, bottom, z
-        ];
-        bars = bars.concat(bar);
+          var height = datum - 5; // [0, 1]
+          var bottom = 0 - 5;
+          var x1 = (i * (barWidth)) - halfWidthScale;
+          var x2 = x1 + (barWidth - barPadding);
+          var z = 1;
+          var bar = [
+            x1, height, z,
+            x1, bottom, z,
+            x2, bottom, z,
+            x2, height, z,
+            x1, height, z,
+            x2, bottom, z
+          ];
+          bars = bars.concat(bar);
 
+        }
+        level /= data.length;
       }
 
-
-      max = (data[0] + data[1] + data[2]) / 3.0 / 255.0;
 
 
       barBuffer = gl.createBuffer();
@@ -458,27 +427,21 @@
       
     }
     if (smokeReady) {
-      drawPoints(max);
-    }
+      drawPoints(level);
+    
 
-    var currentTime = (new Date).getTime();
-    if (lastSquareUpdateTime) {
-      var delta = currentTime - lastSquareUpdateTime;
-
-      squareRotation += (60 * delta) / 1000.0;
-      //squareXOffset += xIncValue * ((30 * delta) / 1000.0);
-      //squareYOffset += yIncValue * ((30 * delta) / 1000.0);
-      //squareZOffset += zIncValue * ((30 * delta) / 1000.0);
-
-      if (Math.abs(squareYOffset) > 2.5) {
-        xIncValue = -xIncValue;
-        yIncValue = -yIncValue;
-        zIncValue = -zIncValue;
+      var currentTime = (new Date).getTime();
+      if (lastSquareUpdateTime) {
+        var delta = currentTime - lastSquareUpdateTime;
+        if (delta > animationFrameDelay) {
+          lastSquareUpdateTime = currentTime;
+          window.animationCount++;
+          animate();
+        } 
+      } else {
+        lastSquareUpdateTime = currentTime;
       }
     }
-
-    lastSquareUpdateTime = currentTime;
-
 
     stats.end();
     requestAnimationFrame(drawScene);
@@ -522,7 +485,7 @@
 
     var pitch_delta = 0.1;
     var yaw_delta = 0.1;
-    var movement_delta = 0.1;
+    var movement_delta = 0.5;
 
     if (!keyMap[key]) {
       return;
@@ -559,11 +522,12 @@
   }
 
   function Camera () {
-    this.position = [0, 0, -9];
+    this.position = [0, 0, -10];
     this.pitch = 0;
     this.yaw = 0;
     
   }
+
 
   Camera.prototype.getModelViewMatrix = function () {
 
@@ -639,7 +603,7 @@
       // Set clear color to black, fully opaque
       gl.clearColor(0.0, 0.0, 0.0, 1.0);
       // Enable depth testing
-      // gl.enable(gl.DEPTH_TEST);
+      gl.disable(gl.DEPTH_TEST);
       // Near things obscure far things
       // gl.depthFunc(gl.LEQUAL);
       // Clear the color as well as the depth buffer.
