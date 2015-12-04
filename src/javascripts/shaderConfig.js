@@ -48,6 +48,16 @@ var config = [
     type: TYPE_FRAGMENT,
     source: require('raw!bar.fragment.glsl')
   },
+  {
+    name: 'quadShader',
+    type: TYPE_VERTEX,
+    source: require('raw!quad.vertex.glsl')
+  },
+  {
+    name: 'quadShader',
+    type: TYPE_FRAGMENT,
+    source: require('raw!quad.fragment.glsl')
+  }
 ];
 
 var ShaderConfig = {}

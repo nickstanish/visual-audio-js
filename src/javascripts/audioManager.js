@@ -85,17 +85,17 @@ var AudioManager = function () {
 
 };
 
-AudioManager.prototype.createDefaultAnalyser = function () {
+AudioManager.prototype.createDefaultAnalyser = function (fftSize, smoothing) {
   var analyser = this.audioContext.createAnalyser();
-  analyser.smoothingTimeConstant = 0.85;
-  analyser.fftSize = 256; 
+  analyser.smoothingTimeConstant = smoothing || 0.85;
+  analyser.fftSize = fftSize || 256; 
   return analyser;
 };
 
 AudioManager.prototype.setupAudioNodes = function (source, destination) {
   var audioContext = this.audioContext;
   var analyser = this.createDefaultAnalyser();
-  var lowAnalyser = this.createDefaultAnalyser();
+  var lowAnalyser = this.createDefaultAnalyser(32, 0);
 
   var filter = audioContext.createBiquadFilter();
   filter.type = 'lowpass';
@@ -180,8 +180,7 @@ AudioManager.prototype.start = function (audioContext, buffer) {
       audioBufferSouceNode.stop = audioBufferSouceNode.noteOff //in old browsers use noteOn method
   };
 
-  audioBufferSouceNode.start(0);
-  this.status = 1;
+  
   this.source = audioBufferSouceNode;
   audioBufferSouceNode.onended = function() {
     console.log("song ended");
@@ -190,6 +189,8 @@ AudioManager.prototype.start = function (audioContext, buffer) {
     self.setControlsToStopped();
   };
   this.setControlsToPlaying();
+  audioBufferSouceNode.start(0);
+  this.status = 1;
 };
 
 AudioManager.prototype.setControlsToStarted = function () {
@@ -228,6 +229,10 @@ AudioManager.prototype.getTimeDomainData = function () {
 };
 AudioManager.prototype.getFrequencyData = function () {
   var analyser = this.analyser;
+   if (!analyser) {
+    console.warn("no analyser");
+    return null;
+  }
   
   var bufferLength = analyser.frequencyBinCount;
   var data = new Uint8Array(bufferLength);
@@ -236,12 +241,54 @@ AudioManager.prototype.getFrequencyData = function () {
 };
 
 AudioManager.prototype.getLowFrequencyData = function () {
+
   var analyser = this.lowAnalyser;
+  if (!analyser) {
+    console.warn("no low analyser");
+    return null;
+  }
   
   var bufferLength = analyser.frequencyBinCount;
   var data = new Uint8Array(bufferLength);
   analyser.getByteFrequencyData(data);
   return data;
+};
+
+AudioManager.prototype.getAverageFrequencyStrength = function () {
+  if (this.isPlaying()) {
+    var data = this.getFrequencyData();
+    if (data && data.length) {
+      var length = data.length;
+
+      var strength = 0;
+      for (var i = 0; i < length; i++){
+        strength += data[i];
+      }
+      return (strength / 256) / length;
+    }
+  }
+ 
+  return null;
+};
+
+AudioManager.prototype.getAverageLowFrequencyStrength = function () {
+  if (this.isPlaying()) {
+    var data = this.getLowFrequencyData();
+    if (data && data.length) {
+      var length = data.length;
+      if (length > 8) {
+        length = 8;
+      }
+
+      var strength = 0;
+      for (var i = 0; i < length; i++){
+        strength += data[i];
+      }
+      return (strength / 256) / length;
+    }
+  }
+ 
+  return null;
 };
 
 

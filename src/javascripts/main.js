@@ -94,8 +94,55 @@
 
   var audioManager = null;
 
+  var frameBuffer;
+  var frameTexture;
+  var quadBuffer;
+  var quadVerticesLocation;
+  var quadShader;
+
   function getRandom(min, max) {
     return Math.random() * (max - min) + min;
+  }
+
+  function initFrameBuffer () {
+    var width = gl.canvas.clientWidth;
+    var height = gl.canvas.clientHeight;
+
+    frameBuffer = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
+    frameBuffer.width = width;
+    frameBuffer.height = height;
+
+    frameTexture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, frameTexture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, frameBuffer.width, frameBuffer.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+/*
+    var renderbuffer = gl.createRenderbuffer();
+    gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
+    gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, frameBuffer.width, frameBuffer.height);
+*/
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, frameTexture, 0);
+    // gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, renderbuffer);
+
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    // gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+    quadBuffer = gl.createBuffer();
+    var quadVertices = new Float32Array([
+      -1.0,  1.0,
+      -1.0,  -1.0,
+      1.0,  -1.0,
+      1.0,  1.0,
+      -1.0,  1.0,
+      1.0,  -1.0]);
+    gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, quadVertices, gl.STATIC_DRAW);
   }
 
   function initTextures() {
@@ -283,6 +330,7 @@
   function initBuffers() {
     initTextures();
     initParticles();
+    initFrameBuffer();
   }
 
   window.frameCount = 0;
@@ -331,73 +379,50 @@
     gl.disableVertexAttribArray(particleColorAttribute);
     gl.disableVertexAttribArray(particleAliveAttribute);
     gl.disableVertexAttribArray(particlePositionAttribute);
-
-    
   }
 
   function animate() {
     moveParticles();
   }
 
-  function drawScene() {
-    resize();
-    stats.begin();
-    
-    
-    setTimeout(function() {
-      window.frameCount += 1;;
-    }, 0);
-
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-    var aspect = canvas.clientWidth / canvas.clientHeight;
-    perspectiveMatrix = makePerspective(50, aspect, 0.1, 100.0);
-
+  function drawBars(dataFunction, dy) {
     var bars = [];
-    var level = -1;
 
-    if (audioManager && audioManager.isPlaying()) {
+    var bufferLength = audioManager.analyser.frequencyBinCount;
+    var widthScale = 8.0;
+    var barWidth = widthScale / bufferLength;
+    var barPadding = barWidth * 0.2;
 
-      var bufferLength = audioManager.analyser.frequencyBinCount;
-      var widthScale = 8.0;
-      var barWidth = widthScale / bufferLength;
-      var barPadding = barWidth * 0.2;
+    var data = dataFunction();
+    var halfWidthScale = (widthScale / 2);
 
-      var data = audioManager.getFrequencyData();
-      var halfWidthScale = (widthScale / 2);
+    if (data && data.length > 0){
+      for(var i = 0; i < data.length; i++) {
+        var datum = data[i] / 256;
 
-      if (data && data.length > 0){
-        level = 0;
-        for(var i = 0; i < data.length; i++) {
-          var datum = data[i] / 256;
-          level += datum;
+        var height = datum - dy; // [0, 1]
+        var bottom = 0 - dy;
+        var x1 = (i * (barWidth)) - halfWidthScale;
+        var x2 = x1 + (barWidth - barPadding);
+        var z = 1;
+        var bar = [
+          x1, height, z,
+          x1, bottom, z,
+          x2, bottom, z,
+          x2, height, z,
+          x1, height, z,
+          x2, bottom, z
+        ];
+        bars = bars.concat(bar);
 
-          var height = datum - 5; // [0, 1]
-          var bottom = 0 - 5;
-          var x1 = (i * (barWidth)) - halfWidthScale;
-          var x2 = x1 + (barWidth - barPadding);
-          var z = 1;
-          var bar = [
-            x1, height, z,
-            x1, bottom, z,
-            x2, bottom, z,
-            x2, height, z,
-            x1, height, z,
-            x2, bottom, z
-          ];
-          bars = bars.concat(bar);
-
-        }
-        level /= data.length;
       }
-
-
+    }
 
       barBuffer = gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER, barBuffer);
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(bars), gl.STATIC_DRAW);
 
-      (function () {
+    (function () {
         gl.useProgram(barShader);
         var pUniform = gl.getUniformLocation(barShader, "uPMatrix");
         gl.uniformMatrix4fv(pUniform, false, new Float32Array(perspectiveMatrix.flatten()));
@@ -423,11 +448,25 @@
 
         gl.disableVertexAttribArray(barVerticesLocation);
       })()
+  }
 
-      
-    }
+  function drawScene() {
+    resize();
+    stats.begin();
+    
+    
+    setTimeout(function() {
+      window.frameCount += 1;;
+    }, 0);
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    var aspect = canvas.clientWidth / canvas.clientHeight;
+    perspectiveMatrix = makePerspective(50, aspect, 0.1, 100.0);
+    
     if (smokeReady) {
-      drawPoints(level);
+      drawPoints(audioManager.getAverageFrequencyStrength());
     
 
       var currentTime = (new Date).getTime();
@@ -441,6 +480,55 @@
       } else {
         lastSquareUpdateTime = currentTime;
       }
+    }
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.useProgram(quadShader);
+    gl.enableVertexAttribArray(quadVerticesLocation);
+    
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, frameTexture);
+    var textureLocation = gl.getUniformLocation(quadShader, "inTexture");
+    gl.uniform1i(textureLocation, 0);
+
+    gl.uniform1f(gl.getUniformLocation(quadShader, "inWidth"), canvas.clientWidth);
+    gl.uniform1f(gl.getUniformLocation(quadShader, "inHeight"), canvas.clientHeight);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
+    gl.vertexAttribPointer(quadVerticesLocation, 2, gl.FLOAT, false, 0, 0);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+
+    gl.disableVertexAttribArray(quadVerticesLocation);
+
+    if (audioManager && audioManager.isPlaying()) {
+      drawBars(audioManager.getLowFrequencyData.bind(audioManager), 3); 
+      drawBars(audioManager.getFrequencyData.bind(audioManager), 5); 
+
+      window.avgLow = window.avgLow || 0;
+      window.lowTrend = window.lowTrend || "increasing";
+
+      var avg = audioManager.getAverageLowFrequencyStrength();
+      var oldTrend = window.lowTrend;
+
+      if (avg >= window.avgLow) {
+        window.lowTrend = "increasing";
+      } else {
+        window.lowTrend = "decreasing"
+      }
+
+      if (oldTrend !== window.lowTrend && window.lowTrend === "decreasing") {
+        window.lastPeak = avg;
+        if (window.lastDip && window.lastPeak - window.lastDip > 0.04) {
+          console.log("~BEAT~ " + avg);
+        }
+      }
+      if (oldTrend !== window.lowTrend && window.lowTrend === "increasing") {
+        window.lastDip = avg;
+      }
+      window.avgLow = avg;
+
+
     }
 
     stats.end();
@@ -580,6 +668,11 @@
     gl.attachShader(barShader, shaderManager.fragment['barShader']);
     gl.linkProgram(barShader);
 
+    quadShader = gl.createProgram();
+    gl.attachShader(quadShader, shaderManager.vertex['quadShader']);
+    gl.attachShader(quadShader, shaderManager.fragment['quadShader']);
+    gl.linkProgram(quadShader);
+
     gl.enable (gl.BLEND);
     gl.blendEquation( gl.FUNC_ADD );
     // gl.blendFunc( gl.SRC_ALPHA, gl.DST_ALPHA );
@@ -595,6 +688,10 @@
 
     gl.useProgram(barShader);
     barVerticesLocation = gl.getAttribLocation(barShader, "aVertexPosition");
+
+    gl.useProgram(quadShader);
+    quadVerticesLocation = gl.getAttribLocation(quadShader, "inCoord");
+    
 
     // Only continue if WebGL is available and working
     // gl.viewport(0, 0, canvas.offsetWidth, canvas.offsetHeight);
@@ -618,6 +715,8 @@
     var height = gl.canvas.clientHeight;
     if (gl.canvas.width != width ||
         gl.canvas.height != height) {
+
+       initFrameBuffer();
        gl.canvas.width = width;
        gl.canvas.height = height;
        gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);

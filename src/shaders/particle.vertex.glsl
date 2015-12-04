@@ -29,7 +29,7 @@ void main(void) {
   if (intensity >= 0.0) {
     value = intensity;
   }
-  gl_PointSize = 20.0 + (value * 40.0);
+  gl_PointSize = 20.0 + (value * 50.0);
   coord = inCoord.xy;
   color = inColor;
 }
