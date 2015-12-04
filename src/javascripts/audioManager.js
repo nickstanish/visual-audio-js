@@ -95,7 +95,7 @@ AudioManager.prototype.createDefaultAnalyser = function (fftSize, smoothing) {
 AudioManager.prototype.setupAudioNodes = function (source, destination) {
   var audioContext = this.audioContext;
   var analyser = this.createDefaultAnalyser();
-  var lowAnalyser = this.createDefaultAnalyser(32, 0);
+  var lowAnalyser = this.createDefaultAnalyser();
 
   var filter = audioContext.createBiquadFilter();
   filter.type = 'lowpass';
@@ -264,7 +264,7 @@ AudioManager.prototype.getAverageFrequencyStrength = function () {
       for (var i = 0; i < length; i++){
         strength += data[i];
       }
-      return (strength / 256) / length;
+      return (strength / 255) / length;
     }
   }
  
@@ -284,7 +284,54 @@ AudioManager.prototype.getAverageLowFrequencyStrength = function () {
       for (var i = 0; i < length; i++){
         strength += data[i];
       }
-      return (strength / 256) / length;
+      return (strength / 255) / length;
+    }
+  }
+ 
+  return null;
+};
+
+AudioManager.prototype.getNormalizedFrequencyData = function () {
+  if (this.isPlaying()) {
+    var data = this.getFrequencyData();
+    if (data && data.length) {
+      var length = data.length;
+      var result = {
+        average: 0,
+        bins: [],
+        max: 0,
+        min: 255
+      };
+
+      var nBins = 8;
+      var nPerBin = length / nBins;
+
+      var strength = 0;
+      for (var i = 0; i < length; i++){
+        var n = Math.floor(i / nPerBin);
+        if (!result.bins[n]){
+          result.bins[n] = data[i];
+        } else {
+          result.bins[n] += data[i];
+        }
+        
+
+        if (data[i] > result.max) {
+          result.max = data[i];
+        }
+        if (data[i] < result.min) {
+          result.min = data[i];
+        }
+        strength += data[i];
+      }
+
+      for (var i = 0; i < result.bins.length; i++){
+        result.bins[i] = result.bins[i] / 255 / nPerBin;
+      }
+      result.max /= 255;
+      result.min /= 255;
+      result.average = (strength / 255) / length;
+      return result;
     }
   }
  

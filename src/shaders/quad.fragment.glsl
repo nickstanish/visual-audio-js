@@ -16,7 +16,7 @@ void main(void) {
   // gl_FragColor = texture2D(inTexture, coord);
   vec2 center = vec2(0.5, 0.5);
   vec2 offsetRatio = vec2(1.0 / inWidth, 1.0 / inHeight);
-  float intensity = 10.0;
+  float intensity = 1.0;
 
   vec2 blurVec = (coord - center) * intensity;
   vec4 pixel = vec4(0.0);

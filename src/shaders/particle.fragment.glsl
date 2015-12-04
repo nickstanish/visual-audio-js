@@ -11,6 +11,7 @@ varying vec3 color;
 varying float alive;
 
 varying float age;
+varying float particleType;
 
 uniform sampler2D inTexture;
 
