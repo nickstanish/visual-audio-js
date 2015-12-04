@@ -3,8 +3,6 @@
 *
 */
 
-
-var _ = require("lodash/lodash.js");
 var ShaderConfig = require('shaderConfig.js');
 
 var ShaderManager = function () {

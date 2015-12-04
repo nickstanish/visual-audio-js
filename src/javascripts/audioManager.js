@@ -3,8 +3,6 @@
 *
 */
 
-var _ = require("lodash/lodash.js");
-
 var AudioManager = function () {
   window.audioManager = this;
 
