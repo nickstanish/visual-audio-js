@@ -5,6 +5,42 @@
 
 (function () {
   var polyfill = require("polyfills");
+  var Utils = require("utils");
+  var utils = new Utils();
+
+  var options = {
+    maxParticles: 5000,
+    useAcceleration: true,
+    emissionRate: 2,
+    particleLifespan: 1000,
+    velocityMultiplier: 2
+  };
+
+  var params = utils.getQueryParams();
+  console.log(params);
+  try {
+    if (params.max && parseInt(params.max) && parseInt(params.max) > 0){
+      options.maxParticles = parseInt(params.max);
+    }
+    if (params.rate && parseInt(params.rate) && parseInt(params.rate) > 0){
+      options.emissionRate = parseInt(params.rate);
+    }
+    if (params.life && parseInt(params.life) && parseInt(params.life) > 0){
+      options.particleLifespan = parseInt(params.life);
+    }
+    if (params.speed && parseInt(params.speed) && parseInt(params.speed) > 0){
+      options.velocityMultiplier = parseInt(params.speed);
+    }
+    if (params.accel){
+      options.useAcceleration = params.accel.toLowerCase() === "true" || params.accel === "1";
+    }
+
+  } catch (e) {
+    if (console.error) {
+      console.error(e);
+    }
+  }
+
   polyfill();
 
   document.addEventListener("DOMContentLoaded", onLoad);
@@ -110,9 +146,9 @@
 
 
   var emitters = [{
-    rate: 2, // number to emit per time slice
+    rate: options.emissionRate, // number to emit per time slice
     lastEmit: null, // used with rate to determine how many to emit
-    lifespan: 1000, // lifespan of particle
+    lifespan: options.particleLifespan, // lifespan of particle
     max: null,
     minDirection: {
       x: -0.01,
@@ -230,12 +266,10 @@
     var emitted = 0;
     var rate = emitter.rate;
     var velocityMultiplier = 1;
-
-    var averageVolume = audioManager.getAverageFrequencyStrength();
-    if (averageVolume !== null) {
-      // window.rate = rate = Math.floor(averageVolume * 4);
-      velocityMultiplier = 2 * averageVolume + 1;
+    if (audioManager.isPlaying()) {
+      velocityMultiplier = options.velocityMultiplier;
     }
+
 
     var particlesLength = particleSystem.alive.length;
 
@@ -258,13 +292,13 @@
             z: getRandom(emitter.minDirection.z, emitter.maxDirection.z)
           };
 
-          /*
+          
           if (velocityMultiplier !== 1) {
             velocity.x *= velocityMultiplier;
             velocity.y *= velocityMultiplier;
             velocity.z *= velocityMultiplier;
           }
-          */
+          
 
           particleSystem.positions[j] = position.x;
           particleSystem.positions[j+1] = position.y;
@@ -286,9 +320,16 @@
         
       } else {
         // update particle
-        particleSystem.positions[j] += particleSystem.velocities[j] + acceleration.x * particleSystem.ages[i];
-        particleSystem.positions[j+1] += particleSystem.velocities[j+1] + acceleration.y * particleSystem.ages[i];
-        particleSystem.positions[j+2] += particleSystem.velocities[j+2];
+        if (options.useAcceleration) {
+          particleSystem.positions[j] += particleSystem.velocities[j] + acceleration.x * particleSystem.ages[i];
+          particleSystem.positions[j+1] += particleSystem.velocities[j+1] + acceleration.y * particleSystem.ages[i];
+          particleSystem.positions[j+2] += particleSystem.velocities[j+2];
+        } else {
+          particleSystem.positions[j] += particleSystem.velocities[j];
+          particleSystem.positions[j+1] += particleSystem.velocities[j+1];
+          particleSystem.positions[j+2] += particleSystem.velocities[j+2];
+        }
+        
 
         if (particleSystem.ages[i] > particleSystem.lifespans[i]) {
           particleSystem.alive[i] = PARTICLE_DEAD;
@@ -308,7 +349,7 @@
   }
 
   function initParticles(){ 
-    var max = 5000;
+    var max = options.maxParticles;
     particleSystem.positions = new Float32Array(max * 3);
     particleSystem.velocities = new Float32Array(max * 3);
     particleSystem.colors = new Float32Array(max * 3);
@@ -501,7 +542,7 @@
   }
 
   function drawBars() {
-    var bars = [];
+    bars = [];
 
     var bufferLength = audioManager.analyser.frequencyBinCount;
     var widthScale = 8.0;
