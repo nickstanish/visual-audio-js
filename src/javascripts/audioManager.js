@@ -14,7 +14,6 @@ var AudioManager = function () {
   try {
     this.audioContext = new AudioContext();
     this.analyser = null;
-    this.lowAnalyser = null;
   } catch (e) {
     console.log(e);
   }
@@ -93,22 +92,13 @@ AudioManager.prototype.createDefaultAnalyser = function (fftSize, smoothing) {
 AudioManager.prototype.setupAudioNodes = function (source, destination) {
   var audioContext = this.audioContext;
   var analyser = this.createDefaultAnalyser();
-  var lowAnalyser = this.createDefaultAnalyser();
-
-  var filter = audioContext.createBiquadFilter();
-  filter.type = 'lowpass';
-  filter.frequency.value = 440;
 
   source.connect(analyser);
   if (destination) {
     analyser.connect(destination);
   }
 
-  analyser.connect(filter);
-  filter.connect(lowAnalyser);
-  
   this.analyser = analyser;
-  this.lowAnalyser = lowAnalyser;
   
 };
 
@@ -236,57 +226,6 @@ AudioManager.prototype.getFrequencyData = function () {
   var data = new Uint8Array(bufferLength);
   analyser.getByteFrequencyData(data);
   return data;
-};
-
-AudioManager.prototype.getLowFrequencyData = function () {
-
-  var analyser = this.lowAnalyser;
-  if (!analyser) {
-    console.warn("no low analyser");
-    return null;
-  }
-  
-  var bufferLength = analyser.frequencyBinCount;
-  var data = new Uint8Array(bufferLength);
-  analyser.getByteFrequencyData(data);
-  return data;
-};
-
-AudioManager.prototype.getAverageFrequencyStrength = function () {
-  if (this.isPlaying()) {
-    var data = this.getFrequencyData();
-    if (data && data.length) {
-      var length = data.length;
-
-      var strength = 0;
-      for (var i = 0; i < length; i++){
-        strength += data[i];
-      }
-      return (strength / 255) / length;
-    }
-  }
- 
-  return null;
-};
-
-AudioManager.prototype.getAverageLowFrequencyStrength = function () {
-  if (this.isPlaying()) {
-    var data = this.getLowFrequencyData();
-    if (data && data.length) {
-      var length = data.length;
-      if (length > 8) {
-        length = 8;
-      }
-
-      var strength = 0;
-      for (var i = 0; i < length; i++){
-        strength += data[i];
-      }
-      return (strength / 255) / length;
-    }
-  }
- 
-  return null;
 };
 
 AudioManager.prototype.getNormalizedFrequencyData = function () {

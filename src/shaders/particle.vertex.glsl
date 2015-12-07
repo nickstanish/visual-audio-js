@@ -37,9 +37,9 @@ void main(void) {
   // }
   if (isPlaying > 0.0) {
     value = inFreqs[int(particleType)];
-    gl_PointSize = 4.0 + (value * 60.0);
+    gl_PointSize = 10.0 + (value * 90.0);
   } else {
-    gl_PointSize = 4.0;
+    gl_PointSize = 40.0;
   }
 
   coord = inCoord.xy;

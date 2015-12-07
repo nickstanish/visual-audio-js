@@ -13,11 +13,11 @@
     useAcceleration: true,
     emissionRate: 2,
     particleLifespan: 1000,
-    velocityMultiplier: 2
+    velocityMultiplier: 2,
+    blur: false
   };
 
   var params = utils.getQueryParams();
-  console.log(params);
   try {
     if (params.max && parseInt(params.max) && parseInt(params.max) > 0){
       options.maxParticles = parseInt(params.max);
@@ -33,6 +33,9 @@
     }
     if (params.accel){
       options.useAcceleration = params.accel.toLowerCase() === "true" || params.accel === "1";
+    }
+    if (params.blur){
+      options.blur = params.blur.toLowerCase() === "true" || params.blur === "1";
     }
 
   } catch (e) {
@@ -66,7 +69,7 @@
 
   var stats;
 
-  var colors= [
+  var colors = [
     {
      name: "red",
      r: 244,
@@ -119,25 +122,14 @@
   ]
 
   var barBuffer;
-  var squareVerticesBuffer, squareVerticesColorBuffer;
   var perspectiveMatrix;
-  var vertexPositionAttribute, vertexColorAttribute;
   var gl;
-  var squareRotation = 0.0;
-  var lastSquareUpdateTime;
-  var squareXOffset = 0.0;
-  var squareYOffset = 0.0;
-  var squareZOffset = 0.0;
-  var xIncValue = 0.2;
-  var yIncValue = -0.4;
-  var zIncValue = 0.3;
-  var mvMatrixStack = [];
+  var animationUpdateTime;
   var shaderProgram;
 
   var particleSystem = {
     positions: null,
     velocities: null,
-    colors: null,
     alive: null,
     ages: null,
     lifespans: null,
@@ -149,7 +141,6 @@
     rate: options.emissionRate, // number to emit per time slice
     lastEmit: null, // used with rate to determine how many to emit
     lifespan: options.particleLifespan, // lifespan of particle
-    max: null,
     minDirection: {
       x: -0.01,
       y: -0.01,
@@ -171,7 +162,7 @@
   var PARTICLE_DEAD = 0;
   var animationFrameDelay = 1000 / 60; 
 
-  var particleBuffer, aliveBuffer, particleColorBuffer, particleAgeBuffer, particleTypeBuffer;
+  var particleBuffer, aliveBuffer, particleAgeBuffer, particleTypeBuffer;
   var particleShader;
   var particleAliveAttribute, particleColorAttribute, particleAgeAttribute, particleTypeAttribute;
 
@@ -219,16 +210,10 @@
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
 
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, frameBuffer.width, frameBuffer.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-/*
-    var renderbuffer = gl.createRenderbuffer();
-    gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
-    gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, frameBuffer.width, frameBuffer.height);
-*/
+
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, frameTexture, 0);
-    // gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, renderbuffer);
 
     gl.bindTexture(gl.TEXTURE_2D, null);
-    // gl.bindRenderbuffer(gl.RENDERBUFFER, null);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
     quadBuffer = gl.createBuffer();
@@ -251,31 +236,25 @@
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, smokeImage);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-      // Prevents s-coordinate wrapping (repeating).
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      // Prevents t-coordinate wrapping (repeating).
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       gl.bindTexture(gl.TEXTURE_2D, null);
       smokeReady = true;
     };
-    smokeImage.src = "public/images/smoke.png";
+    smokeImage.src = "public/images/star.png";
   }
   function moveParticles () {
 
     var emitter = emitters[0];
     var emitted = 0;
     var rate = emitter.rate;
-    var velocityMultiplier = 1;
-    if (audioManager.isPlaying()) {
-      velocityMultiplier = options.velocityMultiplier;
-    }
-
+    var velocityMultiplier = options.velocityMultiplier;
 
     var particlesLength = particleSystem.alive.length;
 
     var acceleration = {
       x: 0,
-      y: -0.00002,
+      y: -0.000015,
       z: 0
     };
 
@@ -292,13 +271,11 @@
             z: getRandom(emitter.minDirection.z, emitter.maxDirection.z)
           };
 
-          
           if (velocityMultiplier !== 1) {
             velocity.x *= velocityMultiplier;
             velocity.y *= velocityMultiplier;
             velocity.z *= velocityMultiplier;
           }
-          
 
           particleSystem.positions[j] = position.x;
           particleSystem.positions[j+1] = position.y;
@@ -352,7 +329,6 @@
     var max = options.maxParticles;
     particleSystem.positions = new Float32Array(max * 3);
     particleSystem.velocities = new Float32Array(max * 3);
-    particleSystem.colors = new Float32Array(max * 3);
     particleSystem.type = new Float32Array(max);
     particleSystem.alive = new Float32Array(max);
     particleSystem.ages = new Float32Array(max);
@@ -367,45 +343,17 @@
     
     
     for (var i = 0, j = 0; i < max; i++, j +=3) {
-      /*
       var position = {
-        x: getRandom(-5,5),
-        y: getRandom(-5,5),
-        z: getRandom(-5,5)
+        x: 0, 
+        y: 0,
+        z: 0
       };
-      */
-      /*
       var velocity = {
-        x: getRandom(-0.005,0.005),
-        y: getRandom(-0.005,0.005),
-        z: getRandom(-0.005,0.005)
+        x: 0, 
+        y: 0,
+        z: 0
       };
-      */
 
-      var position = {
-        x: 0, 
-        y: 0,
-        z: 0
-      };
-      var velocity = {
-        x: 0, 
-        y: 0,
-        z: 0
-      };
-      
-      var color = {
-        r: getRandom(0,1),
-        g: getRandom(0,1),
-        b: getRandom(0,1)
-      };
-      
-      /*
-      var color = {
-        r: 1,
-        g: 1,
-        b: 1
-      };
-      */
 
       var alive = PARTICLE_DEAD; 
 
@@ -417,10 +365,6 @@
       particleSystem.velocities[j+1] = velocity.y;
       particleSystem.velocities[j+2] = velocity.z;
 
-      particleSystem.colors[j] = color.r;
-      particleSystem.colors[j+1] = color.g;
-      particleSystem.colors[j+2] = color.b;
-
       particleSystem.type[j] = 0;
       particleSystem.alive[j] = alive;
 
@@ -428,7 +372,6 @@
 
     particleBuffer = gl.createBuffer();
     aliveBuffer = gl.createBuffer();
-    particleColorBuffer = gl.createBuffer();
     particleAgeBuffer = gl.createBuffer();
     particleTypeBuffer = gl.createBuffer();
 
@@ -440,9 +383,6 @@
 
     gl.bindBuffer(gl.ARRAY_BUFFER, aliveBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, particleSystem.alive, gl.STATIC_DRAW);
-
-    // gl.bindBuffer(gl.ARRAY_BUFFER, particleColorBuffer);
-    // gl.bufferData(gl.ARRAY_BUFFER, particleSystem.colors, gl.STATIC_DRAW);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, particleAgeBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, particleSystem.ages, gl.STATIC_DRAW);
@@ -489,7 +429,7 @@
     gl.uniform1f(frameUniform, window.frameCount);
 
     var intensity = gl.getUniformLocation(particleShader, "intensity");
-    if (data){
+    if (data && data.bins){
       gl.uniform1f(intensity, data.max);
       gl.uniform1fv(gl.getUniformLocation(particleShader, "inFreqs"), data.bins);
     } else {
@@ -505,8 +445,6 @@
     gl.uniform3fv(gl.getUniformLocation(particleShader, "inColors"), colorsBuffer);
     gl.uniform1f(gl.getUniformLocation(particleShader, "isPlaying"), audioManager.isPlaying() ? 1.0 : 0.0);
 
-
-
     gl.bindBuffer(gl.ARRAY_BUFFER, particleBuffer);
     gl.enableVertexAttribArray(particlePositionAttribute);
     gl.vertexAttribPointer(particlePositionAttribute, 3, gl.FLOAT, false, 0, 0);
@@ -514,10 +452,6 @@
     gl.bindBuffer(gl.ARRAY_BUFFER, aliveBuffer);
     gl.enableVertexAttribArray(particleAliveAttribute);
     gl.vertexAttribPointer(particleAliveAttribute, 1, gl.FLOAT, false, 0, 0);
-
-    // gl.bindBuffer(gl.ARRAY_BUFFER, particleColorBuffer);
-    // gl.enableVertexAttribArray(particleColorAttribute);
-    // gl.vertexAttribPointer(particleColorAttribute, 3, gl.FLOAT, false, 0, 0);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, particleAgeBuffer);
     gl.enableVertexAttribArray(particleAgeAttribute);
@@ -529,10 +463,8 @@
 
     gl.drawArrays(gl.POINTS, 0, particleSystem.positions.length / 3);
 
-
     gl.disableVertexAttribArray(particleTypeAttribute);
     gl.disableVertexAttribArray(particleAgeAttribute);
-    // gl.disableVertexAttribArray(particleColorAttribute);
     gl.disableVertexAttribArray(particleAliveAttribute);
     gl.disableVertexAttribArray(particlePositionAttribute);
   }
@@ -556,8 +488,8 @@
       for(var i = 0; i < data.length; i++) {
         var datum = data[i] / 255;
 
-        var height = datum - 5; // [0, 1]
-        var bottom = 0 - 5;
+        var height = datum; // [0, 1]
+        var bottom = 0;
         var x1 = (i * (barWidth)) - halfWidthScale;
         var x2 = x1 + (barWidth - barPadding);
         var z = 1;
@@ -588,11 +520,9 @@
       
         var mUniform = gl.getUniformLocation(barShader, "uMMatrix");
         var modelMatrix = Matrix.I(4);
-        // var inRadians = squareRotation * Math.PI / 180.0;
-        var v = [0, 1, 0];
+        var v = [0, -4, 0];
         
         var m = Matrix.Translation($V([v[0], v[1], v[2]])).ensure4x4();
-        // var m = Matrix.Rotation(inRadians, $V([v[0], v[1], v[2]])).ensure4x4();
         modelMatrix = modelMatrix.x(m);
         gl.uniformMatrix4fv(mUniform, false, new Float32Array(modelMatrix.flatten()));
 
@@ -620,21 +550,23 @@
 
     var aspect = canvas.clientWidth / canvas.clientHeight;
     perspectiveMatrix = makePerspective(50, aspect, 0.1, 100.0);
+
+    var audioData = audioManager.getNormalizedFrequencyData() || {};
     
     if (smokeReady) {
-      drawPoints(audioManager.getNormalizedFrequencyData());
+      drawPoints(audioData);
     
 
       var currentTime = (new Date).getTime();
-      if (lastSquareUpdateTime) {
-        var delta = currentTime - lastSquareUpdateTime;
+      if (animationUpdateTime) {
+        var delta = currentTime - animationUpdateTime;
         if (delta > animationFrameDelay) {
-          lastSquareUpdateTime = currentTime;
+          animationUpdateTime = currentTime;
           window.animationCount++;
           animate();
         } 
       } else {
-        lastSquareUpdateTime = currentTime;
+        animationUpdateTime = currentTime;
       }
     }
 
@@ -647,8 +579,14 @@
     var textureLocation = gl.getUniformLocation(quadShader, "inTexture");
     gl.uniform1i(textureLocation, 0);
 
+    var inVolume = 0;
+    if (options.blur) {
+      inVolume = audioData.average || 0;
+    }
+
     gl.uniform1f(gl.getUniformLocation(quadShader, "inWidth"), canvas.clientWidth);
     gl.uniform1f(gl.getUniformLocation(quadShader, "inHeight"), canvas.clientHeight);
+    gl.uniform1f(gl.getUniformLocation(quadShader, "inVolume"), inVolume);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
     gl.vertexAttribPointer(quadVerticesLocation, 2, gl.FLOAT, false, 0, 0);
@@ -813,7 +751,6 @@
     gl.useProgram(particleShader);
     particlePositionAttribute = gl.getAttribLocation(particleShader, "inCoord");
     particleAliveAttribute = gl.getAttribLocation(particleShader, "inAlive");
-    // particleColorAttribute = gl.getAttribLocation(particleShader, "inColor");
     particleAgeAttribute = gl.getAttribLocation(particleShader, "inAge");
     particleTypeAttribute = gl.getAttribLocation(particleShader, "inType");
 
@@ -825,16 +762,10 @@
     
 
     // Only continue if WebGL is available and working
-    // gl.viewport(0, 0, canvas.offsetWidth, canvas.offsetHeight);
     gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
     if (gl) {
-      // Set clear color to black, fully opaque
       gl.clearColor(0.0, 0.0, 0.0, 1.0);
-      // Enable depth testing
       gl.disable(gl.DEPTH_TEST);
-      // Near things obscure far things
-      // gl.depthFunc(gl.LEQUAL);
-      // Clear the color as well as the depth buffer.
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       
       requestAnimationFrame(drawScene);

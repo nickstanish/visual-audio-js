@@ -24,7 +24,8 @@ function compileShader(gl, type, source) {
 };
 
 ShaderManager.prototype.compileShaders = function (gl) {
-  _.each(ShaderConfig.config, function (shaderConfig){
+  for (var i = 0; i < ShaderConfig.config.length; i++) {
+    var shaderConfig = ShaderConfig.config[i];
     var map;
     var type;
     if (shaderConfig.type === ShaderConfig.TYPE_VERTEX){
@@ -35,8 +36,7 @@ ShaderManager.prototype.compileShaders = function (gl) {
       type = gl.FRAGMENT_SHADER;
     }
     map[shaderConfig.name] = compileShader(gl, type, shaderConfig.source);
-
-  }, this)
+  }
 
 };
 
