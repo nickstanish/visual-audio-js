@@ -24,6 +24,7 @@
   "homepage": "https://github.com/nickstanish/visual-audio-js#readme",
   "dependencies": {
     "express": "^4.13.3",
+    "gl-matrix": "^2.3.2",
     "jade": "^1.11.0"
   },
   "devDependencies": {

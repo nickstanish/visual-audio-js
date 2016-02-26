@@ -57,7 +57,7 @@ module.exports = function(grunt) {
           // alias: {
           //  "shader": ""
           // },
-          modulesDirectories: ["./src/javascripts", "./src/shaders", "./bower_components"]
+          modulesDirectories: ["./src/javascripts", "./src/shaders", "./bower_components", "./node_modules"]
         },
 
         // stats: false disables the stats output

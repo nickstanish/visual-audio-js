@@ -36,7 +36,7 @@ var AudioManager = function () {
     if (!navigator.getUserMedia) {
       return alert("Your browser doesn't support this feature");
     }
-    var constrants = {
+    var constraints = {
       audio: true
     };
     var callback = function (stream) {
@@ -49,7 +49,7 @@ var AudioManager = function () {
     var errorCallback = function (error) {
       console.error(error);
     };
-    navigator.getUserMedia(constrants, callback.bind(this), errorCallback);
+    navigator.getUserMedia(constraints, callback.bind(this), errorCallback);
 
   }
 
