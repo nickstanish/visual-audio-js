@@ -5,8 +5,11 @@
 
 (function () {
   var polyfill = require("polyfills");
-  var Utils = require("utils");
-  var utils = new Utils();
+  var utils = require("utils");
+  var glMatrix = require('gl-matrix');
+  glMatrix.glMatrix.setMatrixArrayType(Float32Array);
+  var mat4 = glMatrix.mat4;
+  var vec4 = glMatrix.vec4;
 
   var options = {
     maxParticles: 5000,
@@ -14,8 +17,13 @@
     emissionRate: 2,
     particleLifespan: 1000,
     velocityMultiplier: 2,
-    blur: false
+    blur: false,
+    showBars: true
   };
+
+  function isParamTrue (param) {
+    return (typeof param === 'boolean' && param) || (param.toLowerCase() === "true") || (param === "1");
+  }
 
   var params = utils.getQueryParams();
   try {
@@ -32,10 +40,13 @@
       options.velocityMultiplier = parseInt(params.speed);
     }
     if (params.accel){
-      options.useAcceleration = params.accel.toLowerCase() === "true" || params.accel === "1";
+      options.useAcceleration = isParamTrue(params.accel);
+    }
+    if (params.bars){
+      options.showBars = isParamTrue(params.bars);
     }
     if (params.blur){
-      options.blur = params.blur.toLowerCase() === "true" || params.blur === "1";
+      options.blur = isParamTrue(params.blur);
     }
 
   } catch (e) {
@@ -389,26 +400,6 @@
   }
 
 
-  function mvRotate(angle, v) {
-    var inRadians = angle * Math.PI / 180.0;
-    
-    var m = Matrix.Rotation(inRadians, $V([v[0], v[1], v[2]])).ensure4x4();
-    multMatrix(m);
-  }
-
-
-  function loadIdentity() {
-    mvMatrix = Matrix.I(4);
-  }
-
-  function multMatrix(m) {
-    mvMatrix = mvMatrix.x(m);
-  }
-
-  function mvTranslate(v) {
-    multMatrix(Matrix.Translation($V([v[0], v[1], v[2]])).ensure4x4());
-  }
-
   function initBuffers() {
     initTextures();
     initParticles();
@@ -420,10 +411,10 @@
   function drawPoints(data) {
     gl.useProgram(particleShader);
     var pUniform = gl.getUniformLocation(particleShader, "uPMatrix");
-    gl.uniformMatrix4fv(pUniform, false, new Float32Array(perspectiveMatrix.flatten()));
+    gl.uniformMatrix4fv(pUniform, false, perspectiveMatrix);
 
     var mvUniform = gl.getUniformLocation(particleShader, "uMVMatrix");
-    gl.uniformMatrix4fv(mvUniform, false, new Float32Array(camera.getModelViewMatrix().flatten()));
+    gl.uniformMatrix4fv(mvUniform, false, camera.getModelViewMatrix());
 
     var frameUniform = gl.getUniformLocation(particleShader, "inFrame");
     gl.uniform1f(frameUniform, window.frameCount);
@@ -513,18 +504,21 @@
     (function () {
         gl.useProgram(barShader);
         var pUniform = gl.getUniformLocation(barShader, "uPMatrix");
-        gl.uniformMatrix4fv(pUniform, false, new Float32Array(perspectiveMatrix.flatten()));
+        gl.uniformMatrix4fv(pUniform, false, perspectiveMatrix);
 
         var mvUniform = gl.getUniformLocation(barShader, "uMVMatrix");
-        gl.uniformMatrix4fv(mvUniform, false, new Float32Array(camera.getModelViewMatrix().flatten()));
+        gl.uniformMatrix4fv(mvUniform, false, camera.getModelViewMatrix());
       
         var mUniform = gl.getUniformLocation(barShader, "uMMatrix");
-        var modelMatrix = Matrix.I(4);
-        var v = [0, -4, 0];
+        var modelMatrix = mat4.create();
+
+        var vector = vec4.fromValues(0, -4, 0, 0);
+        mat4.translate(modelMatrix, modelMatrix, vector);
         
-        var m = Matrix.Translation($V([v[0], v[1], v[2]])).ensure4x4();
-        modelMatrix = modelMatrix.x(m);
-        gl.uniformMatrix4fv(mUniform, false, new Float32Array(modelMatrix.flatten()));
+        
+        // var m = Matrix.Translation($V([v[0], v[1], v[2]])).ensure4x4();
+        // modelMatrix = modelMatrix.x(m);
+        gl.uniformMatrix4fv(mUniform, false, modelMatrix);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, barBuffer);
         gl.enableVertexAttribArray(barVerticesLocation);
@@ -549,7 +543,8 @@
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     var aspect = canvas.clientWidth / canvas.clientHeight;
-    perspectiveMatrix = makePerspective(50, aspect, 0.1, 100.0);
+    perspectiveMatrix = mat4.create();
+    mat4.perspective(perspectiveMatrix, utils.Math.degreesToRadians(50.0), aspect, 0.1, 100.0);
 
     var audioData = audioManager.getNormalizedFrequencyData() || {};
     
@@ -595,7 +590,7 @@
 
     gl.disableVertexAttribArray(quadVerticesLocation);
 
-    if (audioManager && audioManager.isPlaying()) {
+    if (audioManager && audioManager.isPlaying() && options.showBars) {
       drawBars(); 
     }
 
@@ -641,7 +636,7 @@
 
     var pitch_delta = 0.1;
     var yaw_delta = 0.1;
-    var movement_delta = 0.5;
+    var movement_delta = [0.2, 0.5, 0.5];
 
     if (!keyMap[key]) {
       return;
@@ -661,16 +656,16 @@
         camera.yaw -= yaw_delta;
       break;
       case "move_forward":
-        camera.position[2] += movement_delta;
+        camera.position[2] += movement_delta[2];
       break;
       case "move_backward":
-        camera.position[2] -= movement_delta;
+        camera.position[2] -= movement_delta[2];
       break;
       case "move_left":
-        camera.position[0] += movement_delta;
+        camera.position[0] += movement_delta[0];
       break;
       case "move_right":
-        camera.position[0] -= movement_delta;
+        camera.position[0] -= movement_delta[0];
       break;
 
     }
@@ -686,14 +681,11 @@
 
 
   Camera.prototype.getModelViewMatrix = function () {
-
-    loadIdentity();
-
-    mvRotate(-this.pitch, [1, 0, 0]);
-    mvRotate(this.yaw, [0, 1, 0]);
-    mvTranslate(this.position);
-
-    return mvMatrix;
+    var result = mat4.create();
+    mat4.rotateX(result, result, -this.pitch);
+    mat4.rotateY(result, result, this.yaw);
+    mat4.translate(result, result, this.position);
+    return result;
   }
 
   var camera;

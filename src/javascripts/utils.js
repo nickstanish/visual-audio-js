@@ -1,8 +1,6 @@
-function Utils () {
-  
-}
+var Utils = {};
 
-Utils.prototype.getQueryParams = function () {
+Utils.getQueryParams = function () {
   var query = window.location.search.substring(1) || '';
   if (query === "") return {};
   var obj = {};
@@ -18,5 +16,13 @@ Utils.prototype.getQueryParams = function () {
   return obj;
 };
 
+Utils.Math = {
+  degreesToRadians: function (degrees) {
+    return degrees * (Math.PI / 180.0);
+  },
+  radiansToDegrees: function (radians) {
+    return radians * (180.0 / Math.PI);
+  }
+}
 
 module.exports = Utils;
