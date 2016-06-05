@@ -4,6 +4,7 @@
   "description": "Audio Visualizer with WebGL",
   "main": "app.js",
   "scripts": {
+    "start": "nodemon --watch app.js app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
