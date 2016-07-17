@@ -3,15 +3,18 @@
 *
 */
 
-(function () {
-  var polyfill = require("polyfills");
-  var utils = require("utils");
-  var glMatrix = require('gl-matrix');
-  glMatrix.glMatrix.setMatrixArrayType(Float32Array);
-  var mat4 = glMatrix.mat4;
-  var vec4 = glMatrix.vec4;
+/* global Float32Array */
+require('less/styles.less');
+import * as MathUtils from 'utils/math';
+import * as BrowserUtils from 'utils/browser';
 
-  var options = {
+(function () {
+  const polyfill = require("polyfills");
+  const glMatrix = require('gl-matrix');
+  glMatrix.glMatrix.setMatrixArrayType(Float32Array);
+  const {mat4, vec4} = glMatrix;
+
+  const options = {
     maxParticles: 5000,
     useAcceleration: true,
     emissionRate: 2,
@@ -25,7 +28,7 @@
     return (typeof param === 'boolean' && param) || (param.toLowerCase() === "true") || (param === "1");
   }
 
-  var params = utils.getQueryParams();
+  const params = BrowserUtils.getQueryParams();
   try {
     if (params.max && parseInt(params.max) && parseInt(params.max) > 0){
       options.maxParticles = parseInt(params.max);
@@ -62,13 +65,13 @@
 
   function initWebGL(canvas) {
     var gl;
-    
+
     try {
       // Try to grab the standard context. If it fails, fallback to experimental.
       gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
     }
     catch(e) {}
-    
+
     // If we don't have a GL context, give up now
     if (!gl) {
       alert("Unable to initialize WebGL. Your browser may not support it.");
@@ -80,63 +83,63 @@
 
   var stats;
 
-  var colors = [
+  const colors = [
     {
      name: "red",
      r: 244,
      g: 67,
-     b: 54 
+     b: 54
     },
     {
      name: "purple",
      r: 156,
      g: 39,
-     b: 176 
+     b: 176
     },
     {
      name: "blue",
      r: 33,
      g: 150,
-     b: 243 
+     b: 243
     },
     {
      name: "green",
      r: 76,
      g: 175,
-     b: 80 
+     b: 80
     },
     {
      name: "yellow",
      r: 255,
      g: 235,
-     b: 59 
+     b: 59
     },
     {
      name: "orange",
      r: 255,
      g: 152,
-     b: 0 
+     b: 0
     },
     {
      name: "cyan",
      r: 0,
      g: 172,
-     b: 193 
+     b: 193
     },
     {
      name: "pink",
      r: 233,
      g: 30,
-     b: 99 
+     b: 99
     }
 
   ]
 
+  var bars;
   var barBuffer;
   var perspectiveMatrix;
   var gl;
   var animationUpdateTime;
-  var shaderProgram;
 
   var particleSystem = {
     positions: null,
@@ -171,11 +174,11 @@
 
   var PARTICLE_ALIVE = 1;
   var PARTICLE_DEAD = 0;
-  var animationFrameDelay = 1000 / 60; 
+  var animationFrameDelay = 1000 / 60;
 
   var particleBuffer, aliveBuffer, particleAgeBuffer, particleTypeBuffer;
   var particleShader;
-  var particleAliveAttribute, particleColorAttribute, particleAgeAttribute, particleTypeAttribute;
+  var particleAliveAttribute, particleColorAttribute, particleAgeAttribute, particleTypeAttribute, particlePositionAttribute;
 
   var smokeImage, smokeTexture;
   var smokeReady = false;
@@ -242,7 +245,7 @@
   function initTextures() {
     smokeTexture = gl.createTexture();
     smokeImage = new Image();
-    smokeImage.onload = function() { 
+    smokeImage.onload = function() {
       gl.bindTexture(gl.TEXTURE_2D, smokeTexture);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, smokeImage);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
@@ -305,7 +308,7 @@
           emitted++;
 
         }
-        
+
       } else {
         // update particle
         if (options.useAcceleration) {
@@ -317,14 +320,14 @@
           particleSystem.positions[j+1] += particleSystem.velocities[j+1];
           particleSystem.positions[j+2] += particleSystem.velocities[j+2];
         }
-        
+
 
         if (particleSystem.ages[i] > particleSystem.lifespans[i]) {
           particleSystem.alive[i] = PARTICLE_DEAD;
         }
         particleSystem.ages[i]++;
       }
-      
+
     }
     gl.bindBuffer(gl.ARRAY_BUFFER, particleBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, particleSystem.positions, gl.STATIC_DRAW);
@@ -336,7 +339,7 @@
     gl.bufferData(gl.ARRAY_BUFFER, particleSystem.type, gl.STATIC_DRAW);
   }
 
-  function initParticles(){ 
+  function initParticles(){
     var max = options.maxParticles;
     particleSystem.positions = new Float32Array(max * 3);
     particleSystem.velocities = new Float32Array(max * 3);
@@ -351,22 +354,22 @@
       colorsBuffer[i * 3 + 1] = (colors[i].g / 255);
       colorsBuffer[i * 3 + 2] =(colors[i].b / 255);
     }
-    
-    
+
+
     for (var i = 0, j = 0; i < max; i++, j +=3) {
       var position = {
-        x: 0, 
+        x: 0,
         y: 0,
         z: 0
       };
       var velocity = {
-        x: 0, 
+        x: 0,
         y: 0,
         z: 0
       };
 
 
-      var alive = PARTICLE_DEAD; 
+      var alive = PARTICLE_DEAD;
 
       particleSystem.positions[j] = position.x;
       particleSystem.positions[j+1] = position.y;
@@ -427,7 +430,7 @@
       gl.uniform1f(intensity, -1);
       gl.uniform1fv(gl.getUniformLocation(particleShader, "inFreqs"), [0,0,0,0,0,0,0,0]);
     }
-    
+
 
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, smokeTexture);
@@ -508,14 +511,14 @@
 
         var mvUniform = gl.getUniformLocation(barShader, "uMVMatrix");
         gl.uniformMatrix4fv(mvUniform, false, camera.getModelViewMatrix());
-      
+
         var mUniform = gl.getUniformLocation(barShader, "uMMatrix");
         var modelMatrix = mat4.create();
 
         var vector = vec4.fromValues(0, -4, 0, 0);
         mat4.translate(modelMatrix, modelMatrix, vector);
-        
-        
+
+
         // var m = Matrix.Translation($V([v[0], v[1], v[2]])).ensure4x4();
         // modelMatrix = modelMatrix.x(m);
         gl.uniformMatrix4fv(mUniform, false, modelMatrix);
@@ -533,8 +536,8 @@
   function drawScene() {
     resize();
     stats.begin();
-    
-    
+
+
     setTimeout(function() {
       window.frameCount += 1;;
     }, 0);
@@ -544,13 +547,13 @@
 
     var aspect = canvas.clientWidth / canvas.clientHeight;
     perspectiveMatrix = mat4.create();
-    mat4.perspective(perspectiveMatrix, utils.Math.degreesToRadians(50.0), aspect, 0.1, 100.0);
+    mat4.perspective(perspectiveMatrix, MathUtils.degreesToRadians(50.0), aspect, 0.1, 100.0);
 
     var audioData = audioManager.getNormalizedFrequencyData() || {};
-    
+
     if (smokeReady) {
       drawPoints(audioData);
-    
+
 
       var currentTime = (new Date).getTime();
       if (animationUpdateTime) {
@@ -559,7 +562,7 @@
           animationUpdateTime = currentTime;
           window.animationCount++;
           animate();
-        } 
+        }
       } else {
         animationUpdateTime = currentTime;
       }
@@ -568,7 +571,7 @@
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.useProgram(quadShader);
     gl.enableVertexAttribArray(quadVerticesLocation);
-    
+
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, frameTexture);
     var textureLocation = gl.getUniformLocation(quadShader, "inTexture");
@@ -591,7 +594,7 @@
     gl.disableVertexAttribArray(quadVerticesLocation);
 
     if (audioManager && audioManager.isPlaying() && options.showBars) {
-      drawBars(); 
+      drawBars();
     }
 
     stats.end();
@@ -669,14 +672,14 @@
       break;
 
     }
-    
+
   }
 
   function Camera () {
     this.position = [0, 0, -10];
     this.pitch = 0;
     this.yaw = 0;
-    
+
   }
 
 
@@ -711,7 +714,7 @@
     audioManager = new AudioManager();
 
     camera = window.camera = new Camera();
-    
+
 
     var canvas = document.getElementById("canvas");
     gl = initWebGL(canvas);
@@ -751,7 +754,7 @@
 
     gl.useProgram(quadShader);
     quadVerticesLocation = gl.getAttribLocation(quadShader, "inCoord");
-    
+
 
     // Only continue if WebGL is available and working
     gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
@@ -759,7 +762,7 @@
       gl.clearColor(0.0, 0.0, 0.0, 1.0);
       gl.disable(gl.DEPTH_TEST);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-      
+
       requestAnimationFrame(drawScene);
     }
   }
@@ -780,4 +783,3 @@
 
 
 })();
-

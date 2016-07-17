@@ -10,7 +10,7 @@ var AudioManager = function () {
   this.mediaPlayerID = "#media-player";
   this.audioChooserID = "#audio-chooser";
   this.voiceButtonID = "#voice-chooser";
-  
+
   try {
     this.audioContext = new AudioContext();
     this.analyser = null;
@@ -83,15 +83,15 @@ var AudioManager = function () {
 };
 
 AudioManager.prototype.createDefaultAnalyser = function (fftSize, smoothing) {
-  var analyser = this.audioContext.createAnalyser();
+  const analyser = this.audioContext.createAnalyser();
   analyser.smoothingTimeConstant = smoothing || 0.85;
-  analyser.fftSize = fftSize || 256; 
+  analyser.fftSize = fftSize || 256;
   return analyser;
 };
 
 AudioManager.prototype.setupAudioNodes = function (source, destination) {
-  var audioContext = this.audioContext;
-  var analyser = this.createDefaultAnalyser();
+  const audioContext = this.audioContext;
+  const analyser = this.createDefaultAnalyser();
 
   source.connect(analyser);
   if (destination) {
@@ -99,11 +99,11 @@ AudioManager.prototype.setupAudioNodes = function (source, destination) {
   }
 
   this.analyser = analyser;
-  
+
 };
 
 AudioManager.prototype.readCurrentFile = function () {
-  
+
   var self = this;
   var fileReader = new FileReader();
 
@@ -125,7 +125,7 @@ AudioManager.prototype.readCurrentFile = function () {
     console.log(e);
   };
   fileReader.readAsArrayBuffer(this.file);
-  
+
 };
 
 AudioManager.prototype.stop = function () {
@@ -133,18 +133,14 @@ AudioManager.prototype.stop = function () {
   $("#now-playing").text(null);
   if (this.source) {
     if (this.source.mediaStream) {
-      var mediaStream = this.source.mediaStream;
-      mediaStream.active = false;
+      const mediaStream = this.source.mediaStream;
       if (mediaStream.getAudioTracks()) {
-        // this corrects record light still being visible
-        for (var i = 0; i < mediaStream.getAudioTracks().length; i++){
+        for (let i = 0; i < mediaStream.getAudioTracks().length; i++){
           if (mediaStream.getAudioTracks()[i].stop) {
-            mediaStream.getAudioTracks()[i].stop();  
+            mediaStream.getAudioTracks()[i].stop();
           }
         }
       }
-      
-      this.source.mediaStream = null;
     } else {
       this.source.stop();
     }
@@ -157,18 +153,18 @@ AudioManager.prototype.stop = function () {
 };
 
 AudioManager.prototype.start = function (audioContext, buffer) {
-  var self = this;
-  var audioBufferSouceNode = audioContext.createBufferSource();
+  const self = this;
+  const audioBufferSouceNode = audioContext.createBufferSource();
   audioBufferSouceNode.buffer = buffer;
 
   this.setupAudioNodes(audioBufferSouceNode, audioContext.destination);
 
   if (!audioBufferSouceNode.start) {
-      audioBufferSouceNode.start = audioBufferSouceNode.noteOn //in old browsers use noteOn method
-      audioBufferSouceNode.stop = audioBufferSouceNode.noteOff //in old browsers use noteOn method
-  };
+    audioBufferSouceNode.start = audioBufferSouceNode.noteOn //in old browsers use noteOn method
+    audioBufferSouceNode.stop = audioBufferSouceNode.noteOff //in old browsers use noteOn method
+  }
 
-  
+
   this.source = audioBufferSouceNode;
   audioBufferSouceNode.onended = function() {
     console.log("song ended");
@@ -221,7 +217,7 @@ AudioManager.prototype.getFrequencyData = function () {
     console.warn("no analyser");
     return null;
   }
-  
+
   var bufferLength = analyser.frequencyBinCount;
   var data = new Uint8Array(bufferLength);
   analyser.getByteFrequencyData(data);
@@ -251,7 +247,7 @@ AudioManager.prototype.getNormalizedFrequencyData = function () {
         } else {
           result.bins[n] += data[i];
         }
-        
+
 
         if (data[i] > result.max) {
           result.max = data[i];
@@ -271,7 +267,7 @@ AudioManager.prototype.getNormalizedFrequencyData = function () {
       return result;
     }
   }
- 
+
   return null;
 };
 

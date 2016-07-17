@@ -4,10 +4,10 @@
 */
 
 
-var TYPE_VERTEX = 1;
-var TYPE_FRAGMENT= 2;
+export const TYPE_VERTEX = 1;
+export const TYPE_FRAGMENT= 2;
 
-var config = [
+export const config = [
   {
     name: 'simpleShader',
     type: TYPE_VERTEX,
@@ -37,7 +37,7 @@ var config = [
     name: 'particleShader',
     type: TYPE_FRAGMENT,
     source: require('raw!particle.fragment.glsl')
-  }, 
+  },
   {
     name: 'barShader',
     type: TYPE_VERTEX,
@@ -59,11 +59,3 @@ var config = [
     source: require('raw!quad.fragment.glsl')
   }
 ];
-
-var ShaderConfig = {}
-
-ShaderConfig.TYPE_VERTEX = TYPE_VERTEX;
-ShaderConfig.TYPE_FRAGMENT = TYPE_FRAGMENT;
-ShaderConfig.config = config;
-
-module.exports = ShaderConfig;

@@ -15,21 +15,21 @@ varying float particleType;
 
 uniform sampler2D inTexture;
 
-      
+
 void main(void) {
   if (alive != 1.0) {
     discard;
   }
 
   float alpha = 1.0;
-  
+
   // if (intensity >= 0.0) {
   //  alpha = intensity;
   // }
-  
+
 
   alpha = (1.0 - age) * alpha;
 
-  // gl_FragColor = vec4(color, texAlpha);
+  // gl_FragColor = vec4(color, alpha);
   gl_FragColor = vec4((texture2D(inTexture, gl_PointCoord.st).rgb * color), alpha);
 }
