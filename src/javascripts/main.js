@@ -7,6 +7,8 @@
 require('less/styles.less');
 import * as MathUtils from 'utils/math';
 import * as BrowserUtils from 'utils/browser';
+import UIController from 'ui/uiController';
+import AudioManager from 'audio/audioManager.js';
 
 (function () {
   const polyfill = require("polyfills");
@@ -186,7 +188,8 @@ import * as BrowserUtils from 'utils/browser';
   var barShader;
   var barVerticesLocation;
 
-  var audioManager = null;
+  const audioManager = new AudioManager();
+  const uiController = new UIController(audioManager);
 
   var frameBuffer;
   var frameTexture;
@@ -470,7 +473,7 @@ import * as BrowserUtils from 'utils/browser';
   function drawBars() {
     bars = [];
 
-    var bufferLength = audioManager.analyser.frequencyBinCount;
+    var bufferLength = audioManager.getFrequencyBinCount();
     var widthScale = 8.0;
     var barWidth = widthScale / bufferLength;
     var barPadding = barWidth * 0.2;
@@ -708,10 +711,9 @@ import * as BrowserUtils from 'utils/browser';
     document.body.appendChild( stats.domElement );
 
     var ShaderManager = require('shaderManager.js');
-    var AudioManager = require('audioManager.js');
 
     var shaderManager = new ShaderManager();
-    audioManager = new AudioManager();
+    uiController.bind();
 
     camera = window.camera = new Camera();
 

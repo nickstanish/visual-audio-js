@@ -43,17 +43,17 @@ function decodeAudioData (audioContext, buffer) {
 
 class FileSource extends MediaSource {
   constructor(audioContext, file) {
-    super(SOURCE_TYPES.FILE, audioContext);
-    const self = this;
+    super(SOURCE_TYPES.FILE, audioContext, true);
     this.file = file;
     this.fileName = file.name;
+    this.label = this.fileName;
     this.isLoaded = false;
 
     this.fileLoaderPromise = loadFile(file).then((fileBuffer) => {
       return decodeAudioData(audioContext, fileBuffer);
     }).then((audioNode) => {
-      self.isLoaded = true;
-      self.audioNode = audioNode;
+      this.isLoaded = true;
+      this.audioNode = audioNode;
       return Promise.resolve();
     }).catch((error) => {
       return Promise.reject(error);

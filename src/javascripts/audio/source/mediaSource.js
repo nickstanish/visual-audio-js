@@ -14,12 +14,13 @@ class MediaSourceError extends Error {
 const MESSAGE_INVALID_TYPE = "Invalid source type";
 
 export class MediaSource {
-  constructor(sourceType, audioContext) {
+  constructor(sourceType, audioContext, useSpeakerDestination = true) {
     if (!(sourceType in SOURCE_TYPES)) {
       throw new MediaSourceError(MESSAGE_INVALID_TYPE);
     }
     this.sourceType = sourceType;
     this.audioContext = audioContext;
+    this.useSpeakerDestination = useSpeakerDestination;
     this.label = null;
     this.metaData = null;
     this.isLoaded = true;
@@ -33,6 +34,10 @@ export class MediaSource {
 
   onLoaded(onSuccess, onError) {
     this.fileLoaderPromise.then(onSuccess, onError);
+  }
+
+  shouldConnectDestination() {
+    return this.useSpeakerDestination;
   }
 
   getLabel() {
