@@ -20,7 +20,8 @@ class AudioManager {
     this.analyser = null;
     this.state = AUDIO_STATE.OFF;
     this.currentMediaSource = null;
-    this.listeners = [];
+    this.stateListeners = [];
+    this.queueListeners = [];
   }
 
   getAudioContext() {
@@ -36,19 +37,38 @@ class AudioManager {
       this.connectMediaSource(mediaSource);
     } else {
       this.mediaQueue.enqueue(mediaSource);
+      this.notifyQueueListeners();
+    }
+  }
+
+  notifyQueueListeners() {
+    for (let i = 0; i < this.stateListeners.length; i++) {
+      this.queueListeners[i]();
+    }
+  }
+
+  notifyStateListeners (previousState, newState) {
+    for (let i = 0; i < this.stateListeners.length; i++) {
+      this.stateListeners[i](previousState, newState);
     }
   }
 
   setState (newState) {
     const previousState = this.state;
     this.state = newState;
-    for (let i = 0; i < this.listeners.length; i++) {
-      this.listeners[i](previousState, newState);
-    }
+    this.notifyStateListeners(previousState, newState);
+  }
+
+  registerQueueListener(callback) {
+    this.queueListeners.push(callback);
   }
 
   registerStateListener(callback) {
-    this.listeners.push(callback);
+    this.stateListeners.push(callback);
+  }
+
+  getQueueInfo() {
+    return this.mediaQueue.getDisplayValues();
   }
 
   getCurrentSourceInfo() {
@@ -60,17 +80,17 @@ class AudioManager {
   }
 
   connectMediaSource (mediaSource) {
-    const self = this;
     this.currentMediaSource = mediaSource;
     const audioNode = this.currentMediaSource.getAudioNode();
     audioNode.onended = () => {
       console.log("song ended");
-      if (self.mediaQueue.size() > 0) {
-        const nextSource = self.mediaQueue.dequeue();
-        self.connectMediaSource(nextSource);
+      if (this.mediaQueue.size() > 0) {
+        const nextSource = this.mediaQueue.dequeue();
+        this.notifyQueueListeners
+        this.connectMediaSource(nextSource);
       } else {
-        self.currentMediaSource = null;
-        self.setState(AUDIO_STATE.OFF);
+        this.currentMediaSource = null;
+        this.setState(AUDIO_STATE.OFF);
       }
     };
 
@@ -213,68 +233,3 @@ class AudioManager {
 }
 
 export default AudioManager;
-
-
-
-/*
-  function onVoiceChosen (event) {
-    if (!navigator.getUserMedia) {
-      return alert("Your browser doesn't support this feature");
-    }
-    var constraints = {
-      audio: true
-    };
-    var callback = function (stream) {
-      this.source = this.audioContext.createMediaStreamSource(stream);
-      this.setupAudioNodes(this.source, null);
-      this.status = 1;
-      this.setControlsToStarted();
-      this.setControlsToPlaying();
-    };
-    var errorCallback = function (error) {
-      console.error(error);
-    };
-    navigator.getUserMedia(constraints, callback.bind(this), errorCallback);
-
-  }
-
-  function onFileChosen (event) {
-    if (event.target.files.length !== 0) {
-      //only process the first file
-      this.file = event.target.files[0];
-      this.fileName = this.file.name;
-      $("#now-playing").text(this.fileName);
-      this.readCurrentFile();
-    }
-  }
-
-  */
-
-/*
-AudioManager.prototype.readCurrentFile = function () {
-
-  var self = this;
-  var fileReader = new FileReader();
-
-  fileReader.onload = function (e) {
-    var fileResult = e.target.result;
-    var audioContext = self.audioContext;
-    if (audioContext === null) {
-      return;
-    };
-    audioContext.decodeAudioData(fileResult, function (buffer) {
-      console.log("successfully loaded file");
-      self.setControlsToStarted();
-      self.start.call(self, audioContext, buffer);
-    }, function (e) {
-        console.log(e);
-    });
-  };
-  fileReader.onerror = function(e) {
-    console.log(e);
-  };
-  fileReader.readAsArrayBuffer(this.file);
-
-};
-
-*/

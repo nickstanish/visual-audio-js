@@ -15,6 +15,7 @@ class UIController {
 
   bind () {
     this.audioManager.registerStateListener(this.onAudioStateChange.bind(this));
+    this.audioManager.registerQueueListener(this.onQueueChanged.bind(this));
 
     const $fileChooser = $(audioChooserID);
     const $voiceChooser = $(voiceButtonID);
@@ -43,8 +44,7 @@ class UIController {
       }
       case AUDIO_STATE.PLAYING: {
         this.setControlsToPlaying();
-        const sourceInfo = this.audioManager.getCurrentSourceInfo();
-        this.setNowPlaying(sourceInfo.label);
+        this.displayCurrentSong();
         break;
       }
       case AUDIO_STATE.PAUSED: {
@@ -53,6 +53,17 @@ class UIController {
       }
       default: break;
     }
+    this.renderMediaQueue();
+  }
+
+  displayCurrentSong() {
+    const sourceInfo = this.audioManager.getCurrentSourceInfo();
+    this.setNowPlaying(sourceInfo.label);
+  }
+
+  onQueueChanged() {
+    this.displayCurrentSong();
+    this.renderMediaQueue();
   }
 
   addSource (source) {
@@ -97,7 +108,7 @@ class UIController {
 
   setControlsToStarted () {
     $(mediaPlayerID).removeClass("off").addClass("on");
-    $(audioChooserID).addClass("no-select");
+    // $(audioChooserID).addClass("no-select");
   }
 
   setControlsToStopped () {
@@ -115,6 +126,22 @@ class UIController {
     const $mediaPlayer = $(mediaPlayerID);
     $mediaPlayer.removeClass("paused");
     $mediaPlayer.addClass("playing");
+  }
+
+  renderMediaSource(source, index) {
+    const closeButton = '<button type="button" class="close" aria-label="Remove"><span aria-hidden="true">×</span></button>';
+    return `<li><span class="title" data-index="${index}">${source.label}</span>${closeButton}</li>`;
+  }
+
+  renderMediaQueue () {
+    const $mediaQueue = $("#media-queue");
+
+    const children = this.audioManager.getQueueInfo().map((source, index) => {
+      return this.renderMediaSource(source, index);
+    });
+    const list = $('<ul></ul>').append(children);
+    $mediaQueue.empty().append(list);
+
   }
 }
 

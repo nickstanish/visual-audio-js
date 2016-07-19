@@ -31,3 +31,33 @@
 #media-player.playing [data-control="play"]{
   display: none;
 }
+
+@white: #ffffff;
+@black: #000000;
+@grayish: darken(@white, 15%);
+
+.btn.media-btn {
+  background-color: transparent;
+  border-radius: 0;
+  color: @grayish;
+  border-color: @grayish;
+  &:hover {
+    background-color: transparent;
+    color: @white;
+    border-color: @white;
+  }
+}
+
+
+
+#media-queue {
+  button.close {
+    background: transparent;
+    margin-left: 10px;
+    border: none;
+    color: @grayish;
+    &:hover {
+      color: @white;
+    }
+  }
+}

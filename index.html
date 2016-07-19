@@ -17,13 +17,13 @@
           <div id="audio-chooser">
             <h3>Select a song</h3>
             <label for="audioFile">
-              <div class="btn btn-default">
+              <div class="btn btn-default media-btn">
                 <div class="glyphicon glyphicon-folder-open"></div>
               </div>
             </label>
             <input id="audioFile" type="file">
             <label id="voice-chooser">
-              <div class="btn btn-default">
+              <div class="btn btn-default media-btn">
                 <div class="glyphicon glyphicon-record"></div>
               </div>
             </label>
@@ -31,17 +31,18 @@
           <div id="media-player" class="off paused">
             <div id="now-playing" class="user-select"></div>
             <div id="media-controls" class="user-select">
-              <div data-control="play" class="btn btn-default">
+              <div data-control="play" class="btn btn-default media-btn">
                 <div class="glyphicon glyphicon-play"></div>
               </div>
-              <div data-control="pause" class="btn btn-default">
+              <div data-control="pause" class="btn btn-default media-btn">
                 <div class="glyphicon glyphicon-pause"></div>
               </div>
-              <div data-control="stop" class="btn btn-default">
+              <div data-control="stop" class="btn btn-default media-btn">
                 <div class="glyphicon glyphicon-stop"></div>
               </div>
             </div>
           </div>
+          <div id="media-queue"></div>
         </div>
       </div>
     </div>
