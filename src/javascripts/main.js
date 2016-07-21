@@ -3,8 +3,12 @@
 *
 */
 
-/* global Float32Array */
+/* global Float32Array VERSION */
 require('less/styles.less');
+window.VISUAL_AUDIO = {
+  VERSION: VERSION
+};
+
 import * as MathUtils from 'utils/math';
 import * as BrowserUtils from 'utils/browser';
 import UIController from 'ui/uiController';

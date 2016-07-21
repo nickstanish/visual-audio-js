@@ -36,7 +36,10 @@ var webpackConfig = {
   },
   plugins: [
     new ExtractTextPlugin('css/styles.css'),
-    new webpack.optimize.UglifyJsPlugin()
+    new webpack.optimize.UglifyJsPlugin(),
+    new webpack.DefinePlugin({
+      VERSION: JSON.stringify(new Date())
+    })
   ]
 };
 
