@@ -542,7 +542,7 @@ import AudioManager from 'audio/audioManager.js';
 
 
     setTimeout(function() {
-      window.frameCount += 1;;
+      window.frameCount += 1;
     }, 0);
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);

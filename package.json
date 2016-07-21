@@ -7,6 +7,9 @@
     "start": "nodemon --watch app.js app.js",
     "dev": "webpack-dev-server --config=webpack.dev.config.js  --hot --colors --compress --inline --watch",
     "build": "webpack --config=webpack.config.js",
+    "clean": "rm -rf dist",
+    "dist": "npm run clean && npm run build && mkdir -p dist && cp -r public index.html dist",
+    "gh-pages": "git subtree push --prefix dist origin gh-pages",
     "lint": "eslint src",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
