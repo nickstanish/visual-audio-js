@@ -19,6 +19,10 @@ class MediaQueue {
     return this.mediaSources.splice(index, 1)[0];
   }
 
+  clear () {
+    this.mediaSources.splice(0, this.mediaSources.length);
+  }
+
   getDisplayValues () {
     return this.mediaSources.map(function (mediaSource) {
       return {

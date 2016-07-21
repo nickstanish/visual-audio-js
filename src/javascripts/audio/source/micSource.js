@@ -21,7 +21,7 @@ function createMicAudioNode (audioContext) {
 
 class MicSource extends MediaSource {
   constructor(audioContext, file) {
-    super(SOURCE_TYPES.MIC, audioContext, false);
+    super(SOURCE_TYPES.MIC, audioContext, false, false);
     this.file = file;
     this.isLoaded = false;
 

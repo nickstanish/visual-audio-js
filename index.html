@@ -14,35 +14,37 @@
       <canvas id="canvas"></canvas>
       <div id="overlay">
         <div id="overlay-wrapper" class="user-select">
-          <div id="audio-chooser">
-            <h3>Select a song</h3>
-            <label for="audioFile">
-              <div class="btn btn-default media-btn">
-                <div class="glyphicon glyphicon-folder-open"></div>
-              </div>
-            </label>
-            <input id="audioFile" type="file">
-            <label id="voice-chooser">
-              <div class="btn btn-default media-btn">
-                <div class="glyphicon glyphicon-record"></div>
-              </div>
-            </label>
-          </div>
-          <div id="media-player" class="off paused">
-            <div id="now-playing" class="user-select"></div>
-            <div id="media-controls" class="user-select">
-              <div data-control="play" class="btn btn-default media-btn">
-                <div class="glyphicon glyphicon-play"></div>
-              </div>
-              <div data-control="pause" class="btn btn-default media-btn">
-                <div class="glyphicon glyphicon-pause"></div>
-              </div>
-              <div data-control="stop" class="btn btn-default media-btn">
-                <div class="glyphicon glyphicon-stop"></div>
-              </div>
+          <div id="audio-controls">
+            <div id="audio-chooser">
+              <label id="voice-chooser">
+                <div class="btn btn-default media-btn">
+                  <div class="glyphicon glyphicon-record"></div>
+                </div>
+              </label>
+              <label for="audioFile" id="file-chooser">
+                <div class="btn btn-default media-btn">
+                  <div class="glyphicon glyphicon-folder-open"></div>
+                </div>
+                <input id="audioFile" type="file">
+              </label>
+
             </div>
+            <div id="media-player" class="off paused">
+              <div id="media-controls" class="user-select">
+                <div data-control="play" class="btn btn-default media-btn">
+                  <div class="glyphicon glyphicon-play"></div>
+                </div>
+                <div data-control="pause" class="btn btn-default media-btn">
+                  <div class="glyphicon glyphicon-pause"></div>
+                </div>
+                <div data-control="stop" class="btn btn-default media-btn">
+                  <div class="glyphicon glyphicon-stop"></div>
+                </div>
+              </div>
+              <div id="now-playing" class="user-select"></div>
+            </div>
+            <div id="media-queue"></div>
           </div>
-          <div id="media-queue"></div>
         </div>
       </div>
     </div>

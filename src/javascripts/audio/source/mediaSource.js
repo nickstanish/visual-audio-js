@@ -14,13 +14,14 @@ class MediaSourceError extends Error {
 const MESSAGE_INVALID_TYPE = "Invalid source type";
 
 export class MediaSource {
-  constructor(sourceType, audioContext, useSpeakerDestination = true) {
+  constructor(sourceType, audioContext, useSpeakerDestination = true, allowQueuing = true) {
     if (!(sourceType in SOURCE_TYPES)) {
       throw new MediaSourceError(MESSAGE_INVALID_TYPE);
     }
     this.sourceType = sourceType;
     this.audioContext = audioContext;
     this.useSpeakerDestination = useSpeakerDestination;
+    this.allowQueuing = allowQueuing;
     this.label = null;
     this.metaData = null;
     this.isLoaded = true;
@@ -38,6 +39,10 @@ export class MediaSource {
 
   shouldConnectDestination() {
     return this.useSpeakerDestination;
+  }
+
+  shouldAllowQueueing() {
+    return this.allowQueuing;
   }
 
   getLabel() {

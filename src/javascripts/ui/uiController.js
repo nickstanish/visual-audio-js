@@ -3,10 +3,13 @@ import FileSource from 'audio/source/fileSource';
 import MicSource from 'audio/source/micSource';
 
 import { AUDIO_STATE } from 'audio/audioManager';
+import { SOURCE_TYPES } from 'audio/source/mediaSource';
 
 const mediaPlayerID = "#media-player";
 const audioChooserID = "#audio-chooser";
+const fileChooserID = "#file-chooser";
 const voiceButtonID = "#voice-chooser";
+const mediaButtonID = ".media-btn";
 
 class UIController {
   constructor(audioManager) {
@@ -17,7 +20,7 @@ class UIController {
     this.audioManager.registerStateListener(this.onAudioStateChange.bind(this));
     this.audioManager.registerQueueListener(this.onQueueChanged.bind(this));
 
-    const $fileChooser = $(audioChooserID);
+    const $fileChooser = $(fileChooserID);
     const $voiceChooser = $(voiceButtonID);
     const $playButton = $("#media-controls [data-control='play']");
     const $pauseButton = $("#media-controls [data-control='pause']");
@@ -29,22 +32,33 @@ class UIController {
     $pauseButton.on("click", (event) => { this.onPauseClicked(event) });
     $stopButton.on("click", (event) => { this.onStopClicked(event) });
 
+    $("body").on("click", "#media-queue [data-queue-index].close", (event) => this.onRemoveQueueItem(event))
+
   }
 
   onAudioStateChange(previousState, newState) {
     console.log("on state change %s %s", previousState, newState);
+    const sourceInfo = this.audioManager.getCurrentSourceInfo();
+    if (sourceInfo && sourceInfo.type === SOURCE_TYPES.MIC) {
+      this.setMicControls();
+      return;
+    }
+
     if (previousState === AUDIO_STATE.OFF && newState === AUDIO_STATE.PLAYING) {
       this.setControlsToStarted();
+      this.setQueueControls();
     }
     switch (newState) {
       case AUDIO_STATE.OFF: {
         this.setControlsToStopped();
         this.setNowPlaying(null);
+        this.resetQueueControls();
         break;
       }
       case AUDIO_STATE.PLAYING: {
         this.setControlsToPlaying();
         this.displayCurrentSong();
+
         break;
       }
       case AUDIO_STATE.PAUSED: {
@@ -82,13 +96,21 @@ class UIController {
       const file = event.target.files[0];
       const source = new FileSource(audioContext, file);
       this.addSource(source);
+      this.resetFileChooser();
     }
   }
 
   onVoiceChosen () {
-    const audioContext = this.audioManager.getAudioContext();
-    const source = new MicSource(audioContext);
-    this.addSource(source);
+    const sourceInfo = this.audioManager.getCurrentSourceInfo();
+    if (sourceInfo && sourceInfo.type === SOURCE_TYPES.MIC) {
+      // already active
+      this.resetMicControls();
+      this.audioManager.stop();
+    } else {
+      const audioContext = this.audioManager.getAudioContext();
+      const source = new MicSource(audioContext);
+      this.addSource(source);
+    }
   }
 
   onPlayClicked () {
@@ -116,6 +138,13 @@ class UIController {
     $(audioChooserID).removeClass("no-select");
   }
 
+  resetFileChooser() {
+    // reset the audio input form so it can be submitted again
+    const $audioChooser = $(audioChooserID);
+    $audioChooser.wrap('<form>').closest('form').get(0).reset();
+    $audioChooser.unwrap();
+  }
+
   setControlsToPaused () {
     const $mediaPlayer = $(mediaPlayerID);
     $mediaPlayer.removeClass("playing");
@@ -128,9 +157,38 @@ class UIController {
     $mediaPlayer.addClass("playing");
   }
 
+  setMicControls () {
+    const $voiceButton = $(voiceButtonID);
+    const $fileChooser = $(fileChooserID);
+    $fileChooser.find("input, .media-btn").attr("disabled", "disabled");
+    $voiceButton.addClass("active");
+  }
+
+  setQueueControls () {
+    const $voiceButton = $(voiceButtonID);
+    $voiceButton.find(`${mediaButtonID}`).attr("disabled", "disabled");
+  }
+
+  resetQueueControls() {
+    const $voiceButton = $(voiceButtonID);
+    $voiceButton.find(`${mediaButtonID}`).removeAttr("disabled");
+  }
+
+  resetMicControls () {
+    const $voiceButton = $(voiceButtonID);
+    const $fileChooser = $(fileChooserID);
+    $fileChooser.find(`input, ${mediaButtonID}`).removeAttr("disabled");
+    $voiceButton.removeClass("active");
+  }
+
   renderMediaSource(source, index) {
-    const closeButton = '<button type="button" class="close" aria-label="Remove"><span aria-hidden="true">×</span></button>';
-    return `<li><span class="title" data-index="${index}">${source.label}</span>${closeButton}</li>`;
+    const closeButton = `<button type="button" class="close" data-queue-index=${index} aria-label="Remove"><span aria-hidden="true">×</span></button>`;
+    return `<li>${closeButton}<span class="title" data-index="${index}">${source.label}</span></li>`;
+  }
+
+  onRemoveQueueItem (event) {
+    const index = $(event.target).attr("data-queue-index");
+    this.audioManager.removeQueueIndex(index);
   }
 
   renderMediaQueue () {

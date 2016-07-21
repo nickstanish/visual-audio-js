@@ -35,10 +35,13 @@ class AudioManager {
   addMediaSource (mediaSource) {
     if (this.mediaQueue.size() === 0 && !this.isPlaying()) {
       this.connectMediaSource(mediaSource);
-    } else {
+    } else if (mediaSource.shouldAllowQueueing()) {
       this.mediaQueue.enqueue(mediaSource);
       this.notifyQueueListeners();
+    } else {
+      console.error("Attempt to enqueue source that doesn't allow queueing");
     }
+
   }
 
   notifyQueueListeners() {
@@ -71,7 +74,15 @@ class AudioManager {
     return this.mediaQueue.getDisplayValues();
   }
 
+  removeQueueIndex(index) {
+    this.mediaQueue.popIndex(index);
+    this.notifyQueueListeners();
+  }
+
   getCurrentSourceInfo() {
+    if (!this.currentMediaSource) {
+      return null;
+    }
     return {
       label: this.currentMediaSource.getLabel(),
       metadata: this.currentMediaSource.getMetaData(),
@@ -135,6 +146,7 @@ class AudioManager {
       }
     }
     this.currentMediaSource = null;
+    this.mediaQueue.clear();
     this.setState(AUDIO_STATE.OFF);
   }
 
