@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Visual Audio JS</title>
+    <link href="public/css/bootstrap.min.css" rel="stylesheet">
+    <link href="public/css/styles.css" rel="stylesheet">
+    <script src="public/js/jquery-2.1.4.min.js"></script>
+    <script src="public/js/bootstrap.min.js"></script>
+    <script src="public/js/stats.min.js"></script>
+    <script src="public/js/visual-audio.js"></script>
+  </head>
+  <body>
+    <div class="content-wrapper">
+      <canvas id="canvas"></canvas>
+      <div id="overlay">
+        <div id="overlay-wrapper" class="user-select">
+          <div id="audio-controls">
+            <div id="audio-chooser">
+              <label id="voice-chooser">
+                <div class="btn btn-default media-btn">
+                  <div class="glyphicon glyphicon-record"></div>
+                </div>
+              </label>
+              <label for="audioFile" id="file-chooser">
+                <div class="btn btn-default media-btn">
+                  <div class="glyphicon glyphicon-folder-open"></div>
+                </div>
+                <input id="audioFile" type="file">
+              </label>
+
+            </div>
+            <div id="media-player" class="off paused">
+              <div id="media-controls" class="user-select">
+                <div data-control="play" class="btn btn-default media-btn">
+                  <div class="glyphicon glyphicon-play"></div>
+                </div>
+                <div data-control="pause" class="btn btn-default media-btn">
+                  <div class="glyphicon glyphicon-pause"></div>
+                </div>
+                <div data-control="stop" class="btn btn-default media-btn">
+                  <div class="glyphicon glyphicon-stop"></div>
+                </div>
+              </div>
+              <div id="now-playing" class="user-select"></div>
+            </div>
+            <div id="media-queue"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
