@@ -7,3 +7,8 @@ bower_components
 
 public/js/visual-audio.js
 public/js/visual-audio.js.map
+public/css/styles.css
+*.map
+
+# include dist for subtree
+!dist
