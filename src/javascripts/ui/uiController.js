@@ -93,9 +93,11 @@ class UIController {
     if (event.target.files.length !== 0) {
       //only process the first file
       const audioContext = this.audioManager.getAudioContext();
-      const file = event.target.files[0];
-      const source = new FileSource(audioContext, file);
-      this.addSource(source);
+      const files = Array.prototype.slice.call(event.target.files);
+      files.forEach((file) => {
+        const source = new FileSource(audioContext, file);
+        this.addSource(source);
+      });
       this.resetFileChooser();
     }
   }

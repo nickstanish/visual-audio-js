@@ -3,39 +3,34 @@
 *
 */
 
-var ShaderConfig = require('shaderConfig.js');
+const ShaderConfig = require('shaderConfig.js');
 
-var ShaderManager = function () {
+const ShaderManager = function () {
   this.fragment = {};
   this.vertex = {};
 }
 
 function compileShader(gl, type, source) {
-  var shader = gl.createShader(type);
+  const shader = gl.createShader(type);
   gl.shaderSource(shader, source);
-    
+
   // Compile the shader program
-  gl.compileShader(shader);  
-  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {  
-    console.log("An error occurred compiling the shaders: " + gl.getShaderInfoLog(shader));  
-    return null;  
+  gl.compileShader(shader);
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    console.log("An error occurred compiling the shaders: " + gl.getShaderInfoLog(shader));
+    return null;
   }
   return shader;
-};
+}
 
 ShaderManager.prototype.compileShaders = function (gl) {
-  for (var i = 0; i < ShaderConfig.config.length; i++) {
-    var shaderConfig = ShaderConfig.config[i];
-    var map;
-    var type;
-    if (shaderConfig.type === ShaderConfig.TYPE_VERTEX){
-      map = this.vertex;
-      type = gl.VERTEX_SHADER;
+  for (let i = 0; i < ShaderConfig.config.length; i++) {
+    const { source, type, name } = ShaderConfig.config[i];
+    if (type === ShaderConfig.TYPE_VERTEX){
+      this.vertex[name] = compileShader(gl, gl.VERTEX_SHADER, source);
     } else {
-      map = this.fragment;
-      type = gl.FRAGMENT_SHADER;
+      this.fragment[name] = compileShader(gl, gl.FRAGMENT_SHADER, source);
     }
-    map[shaderConfig.name] = compileShader(gl, type, shaderConfig.source);
   }
 
 };

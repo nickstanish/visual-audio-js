@@ -147,7 +147,7 @@ import AudioManager from 'audio/audioManager.js';
   var gl;
   var animationUpdateTime;
 
-  var particleSystem = {
+  const particleSystem = {
     positions: null,
     velocities: null,
     alive: null,
@@ -157,19 +157,14 @@ import AudioManager from 'audio/audioManager.js';
   };
 
 
-  var emitters = [{
+  const emitters = [{
     rate: options.emissionRate, // number to emit per time slice
     lastEmit: null, // used with rate to determine how many to emit
     lifespan: options.particleLifespan, // lifespan of particle
-    minDirection: {
-      x: -0.01,
-      y: -0.01,
-      z: -0.01
-    },
-    maxDirection: {
-      x: 0.01,
-      y: 0.01,
-      z: 0.01
+    direction: {
+      x: [-0.01, 0.01],
+      y: [-0.01, 0.01],
+      z: [-0.01, 0.01]
     },
     position: {
       x: 0,
@@ -178,8 +173,8 @@ import AudioManager from 'audio/audioManager.js';
     }
   }];
 
-  var PARTICLE_ALIVE = 1;
-  var PARTICLE_DEAD = 0;
+  const PARTICLE_ALIVE = 1;
+  const PARTICLE_DEAD = 0;
   var animationFrameDelay = 1000 / 60;
 
   var particleBuffer, aliveBuffer, particleAgeBuffer, particleTypeBuffer;
@@ -203,20 +198,9 @@ import AudioManager from 'audio/audioManager.js';
 
   var colorsBuffer;
 
-  /**
-  * Inclusive [min, max]
-  */
-  function getRandomInt(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-  }
-
-  function getRandom(min, max) {
-    return Math.random() * (max - min) + min;
-  }
-
   function initFrameBuffer () {
-    var width = gl.canvas.clientWidth;
-    var height = gl.canvas.clientHeight;
+    const width = gl.canvas.clientWidth;
+    const height = gl.canvas.clientHeight;
 
     frameBuffer = gl.createFramebuffer();
     gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
@@ -238,7 +222,7 @@ import AudioManager from 'audio/audioManager.js';
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
     quadBuffer = gl.createBuffer();
-    var quadVertices = new Float32Array([
+    const quadVertices = new Float32Array([
       -1.0,  1.0,
       -1.0,  -1.0,
       1.0,  -1.0,
@@ -273,23 +257,23 @@ import AudioManager from 'audio/audioManager.js';
 
     var particlesLength = particleSystem.alive.length;
 
-    var acceleration = {
+    const acceleration = {
       x: 0,
       y: -0.000015,
       z: 0
     };
 
-    for (var i = 0; i < particlesLength; i++) {
-      var j = i * 3;
+    for (let i = 0; i < particlesLength; i++) {
+      const j = i * 3;
 
       if (particleSystem.alive[i] === PARTICLE_DEAD) {
         // spawn particle
         if (emitted < rate) {
-          var position = emitter.position;
-          var velocity = {
-            x: getRandom(emitter.minDirection.x, emitter.maxDirection.x),
-            y: getRandom(emitter.minDirection.y, emitter.maxDirection.y),
-            z: getRandom(emitter.minDirection.z, emitter.maxDirection.z)
+          const position = emitter.position;
+          const velocity = {
+            x: MathUtils.getRandom(emitter.direction.x[0], emitter.direction.x[1]),
+            y: MathUtils.getRandom(emitter.direction.y[0], emitter.direction.y[1]),
+            z: MathUtils.getRandom(emitter.direction.z[0], emitter.direction.z[1])
           };
 
           if (velocityMultiplier !== 1) {
@@ -347,7 +331,7 @@ import AudioManager from 'audio/audioManager.js';
   }
 
   function initParticles(){
-    var max = options.maxParticles;
+    const max = options.maxParticles;
     particleSystem.positions = new Float32Array(max * 3);
     particleSystem.velocities = new Float32Array(max * 3);
     particleSystem.type = new Float32Array(max);
@@ -376,7 +360,7 @@ import AudioManager from 'audio/audioManager.js';
       };
 
 
-      var alive = PARTICLE_DEAD;
+      const alive = PARTICLE_DEAD;
 
       particleSystem.positions[j] = position.x;
       particleSystem.positions[j+1] = position.y;
@@ -698,7 +682,7 @@ import AudioManager from 'audio/audioManager.js';
     return result;
   }
 
-  var camera;
+  let camera;
 
 
   function onLoad () {

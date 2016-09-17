@@ -13,6 +13,8 @@ export const AUDIO_STATE = {
   PAUSED: "PAUSED"
 };
 
+const DEFAULT_SMOOTHING = 0.5; // 0.85
+
 class AudioManager {
   constructor() {
     this.mediaQueue = new MediaQueue();
@@ -150,7 +152,7 @@ class AudioManager {
     this.setState(AUDIO_STATE.OFF);
   }
 
-  createDefaultAnalyser (fftSize = 256, smoothing = 0.85) {
+  createDefaultAnalyser (fftSize = 256, smoothing = DEFAULT_SMOOTHING) {
     const analyser = this.audioContext.createAnalyser();
     analyser.smoothingTimeConstant = smoothing;
     analyser.fftSize = fftSize;

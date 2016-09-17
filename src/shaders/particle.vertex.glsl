@@ -24,6 +24,7 @@ varying vec3 color;
 varying float age;
 varying float particleType;
 
+// const vec3 colorWhite = vec3(1., 1., 1.);
 
 void main(void) {
   alive = inAlive;
@@ -38,12 +39,13 @@ void main(void) {
   if (isPlaying > 0.0) {
     value = inFreqs[int(particleType)];
     gl_PointSize = 10.0 + (value * 90.0);
+
   } else {
-    gl_PointSize = 40.0;
+    gl_PointSize = 50.0;
   }
 
   coord = inCoord.xy;
-
   color = inColors[int(particleType)];
+
 
 }
