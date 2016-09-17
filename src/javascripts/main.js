@@ -14,778 +14,259 @@ import * as BrowserUtils from 'utils/browser';
 import UIController from 'ui/uiController';
 import AudioManager from 'audio/audioManager.js';
 
-(function () {
-  const polyfill = require("polyfills");
-  const glMatrix = require('gl-matrix');
-  glMatrix.glMatrix.setMatrixArrayType(Float32Array);
-  const {mat4, vec4} = glMatrix;
+import THREE from 'three';
 
-  const options = {
-    maxParticles: 5000,
-    useAcceleration: true,
-    emissionRate: 2,
-    particleLifespan: 1000,
-    velocityMultiplier: 2,
-    blur: false,
-    showBars: true
-  };
+const polyfill = require("polyfills");
+const glMatrix = require('gl-matrix');
+glMatrix.glMatrix.setMatrixArrayType(Float32Array);
+const {mat4, vec4} = glMatrix;
 
-  function isParamTrue (param) {
-    return (typeof param === 'boolean' && param) || (param.toLowerCase() === "true") || (param === "1");
-  }
-
-  const params = BrowserUtils.getQueryParams();
-  try {
-    if (params.max && parseInt(params.max) && parseInt(params.max) > 0){
-      options.maxParticles = parseInt(params.max);
-    }
-    if (params.rate && parseInt(params.rate) && parseInt(params.rate) > 0){
-      options.emissionRate = parseInt(params.rate);
-    }
-    if (params.life && parseInt(params.life) && parseInt(params.life) > 0){
-      options.particleLifespan = parseInt(params.life);
-    }
-    if (params.speed && parseInt(params.speed) && parseInt(params.speed) > 0){
-      options.velocityMultiplier = parseInt(params.speed);
-    }
-    if (params.accel){
-      options.useAcceleration = isParamTrue(params.accel);
-    }
-    if (params.bars){
-      options.showBars = isParamTrue(params.bars);
-    }
-    if (params.blur){
-      options.blur = isParamTrue(params.blur);
-    }
-
-  } catch (e) {
-    if (console.error) {
-      console.error(e);
-    }
-  }
-
-  polyfill();
-
-  document.addEventListener("DOMContentLoaded", onLoad);
-  // document.addEventListener("resize", onResize);
-
-  function initWebGL(canvas) {
-    var gl;
-
-    try {
-      // Try to grab the standard context. If it fails, fallback to experimental.
-      gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
-    }
-    catch(e) {}
-
-    // If we don't have a GL context, give up now
-    if (!gl) {
-      alert("Unable to initialize WebGL. Your browser may not support it.");
-      gl = null;
-    }
-    window.gl = gl;
-    return gl;
-  }
-
-  var stats;
-
-  const colors = [
-    {
-     name: "red",
-     r: 244,
-     g: 67,
-     b: 54
-    },
-    {
-     name: "purple",
-     r: 156,
-     g: 39,
-     b: 176
-    },
-    {
-     name: "blue",
-     r: 33,
-     g: 150,
-     b: 243
-    },
-    {
-     name: "green",
-     r: 76,
-     g: 175,
-     b: 80
-    },
-    {
-     name: "yellow",
-     r: 255,
-     g: 235,
-     b: 59
-    },
-    {
-     name: "orange",
-     r: 255,
-     g: 152,
-     b: 0
-    },
-    {
-     name: "cyan",
-     r: 0,
-     g: 172,
-     b: 193
-    },
-    {
-     name: "pink",
-     r: 233,
-     g: 30,
-     b: 99
-    }
-
-  ]
-
-  var bars;
-  var barBuffer;
-  var perspectiveMatrix;
-  var gl;
-  var animationUpdateTime;
-
-  var particleSystem = {
-    positions: null,
-    velocities: null,
-    alive: null,
-    ages: null,
-    lifespans: null,
-    nextType: 0
-  };
+const audioManager = new AudioManager();
+const uiController = new UIController(audioManager);
+const canvas = document.getElementById('canvas');
 
 
-  var emitters = [{
-    rate: options.emissionRate, // number to emit per time slice
-    lastEmit: null, // used with rate to determine how many to emit
-    lifespan: options.particleLifespan, // lifespan of particle
-    minDirection: {
-      x: -0.01,
-      y: -0.01,
-      z: -0.01
-    },
-    maxDirection: {
-      x: 0.01,
-      y: 0.01,
-      z: 0.01
-    },
-    position: {
-      x: 0,
-      y: 0,
-      z: 0
-    }
-  }];
+require('./orbit');
+const Detector = require('./detector');
 
-  var PARTICLE_ALIVE = 1;
-  var PARTICLE_DEAD = 0;
-  var animationFrameDelay = 1000 / 60;
 
-  var particleBuffer, aliveBuffer, particleAgeBuffer, particleTypeBuffer;
-  var particleShader;
-  var particleAliveAttribute, particleColorAttribute, particleAgeAttribute, particleTypeAttribute, particlePositionAttribute;
 
-  var smokeImage, smokeTexture;
-  var smokeReady = false;
+if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
 
-  var barShader;
-  var barVerticesLocation;
+    var camera, scene, renderer,
+    bulbLight, bulbMat, ambientLight,
+    object, loader, hemiLight;
+    var ballMat, cubeMat, floorMat;
 
-  const audioManager = new AudioManager();
-  const uiController = new UIController(audioManager);
 
-  var frameBuffer;
-  var frameTexture;
-  var quadBuffer;
-  var quadVerticesLocation;
-  var quadShader;
-
-  var colorsBuffer;
-
-  /**
-  * Inclusive [min, max]
-  */
-  function getRandomInt(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-  }
-
-  function getRandom(min, max) {
-    return Math.random() * (max - min) + min;
-  }
-
-  function initFrameBuffer () {
-    var width = gl.canvas.clientWidth;
-    var height = gl.canvas.clientHeight;
-
-    frameBuffer = gl.createFramebuffer();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
-    frameBuffer.width = width;
-    frameBuffer.height = height;
-
-    frameTexture = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, frameTexture);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, frameBuffer.width, frameBuffer.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, frameTexture, 0);
-
-    gl.bindTexture(gl.TEXTURE_2D, null);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-
-    quadBuffer = gl.createBuffer();
-    var quadVertices = new Float32Array([
-      -1.0,  1.0,
-      -1.0,  -1.0,
-      1.0,  -1.0,
-      1.0,  1.0,
-      -1.0,  1.0,
-      1.0,  -1.0]);
-    gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, quadVertices, gl.STATIC_DRAW);
-  }
-
-  function initTextures() {
-    smokeTexture = gl.createTexture();
-    smokeImage = new Image();
-    smokeImage.onload = function() {
-      gl.bindTexture(gl.TEXTURE_2D, smokeTexture);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, smokeImage);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      gl.bindTexture(gl.TEXTURE_2D, null);
-      smokeReady = true;
-    };
-    smokeImage.src = "public/images/star.png";
-  }
-  function moveParticles () {
-
-    var emitter = emitters[0];
-    var emitted = 0;
-    var rate = emitter.rate;
-    var velocityMultiplier = options.velocityMultiplier;
-
-    var particlesLength = particleSystem.alive.length;
-
-    var acceleration = {
-      x: 0,
-      y: -0.000015,
-      z: 0
+    // ref for lumens: http://www.power-sure.com/lumens.htm
+    var bulbLuminousPowers = {
+      "110000 lm (1000W)": 110000,
+      "3500 lm (300W)": 3500,
+      "1700 lm (100W)": 1700,
+      "800 lm (60W)": 800,
+      "400 lm (40W)": 400,
+      "180 lm (25W)": 180,
+      "20 lm (4W)": 20,
+      "Off": 0
     };
 
-    for (var i = 0; i < particlesLength; i++) {
-      var j = i * 3;
-
-      if (particleSystem.alive[i] === PARTICLE_DEAD) {
-        // spawn particle
-        if (emitted < rate) {
-          var position = emitter.position;
-          var velocity = {
-            x: getRandom(emitter.minDirection.x, emitter.maxDirection.x),
-            y: getRandom(emitter.minDirection.y, emitter.maxDirection.y),
-            z: getRandom(emitter.minDirection.z, emitter.maxDirection.z)
-          };
-
-          if (velocityMultiplier !== 1) {
-            velocity.x *= velocityMultiplier;
-            velocity.y *= velocityMultiplier;
-            velocity.z *= velocityMultiplier;
-          }
-
-          particleSystem.positions[j] = position.x;
-          particleSystem.positions[j+1] = position.y;
-          particleSystem.positions[j+2] = position.z;
-
-          particleSystem.velocities[j] = velocity.x;
-          particleSystem.velocities[j+1] = velocity.y;
-          particleSystem.velocities[j+2] = velocity.z;
-
-          particleSystem.alive[i] = PARTICLE_ALIVE;
-          particleSystem.ages[i] = 0;
-          particleSystem.lifespans[i] = emitter.lifespan;
-          particleSystem.type[i] = particleSystem.nextType;
-
-          particleSystem.nextType = (particleSystem.nextType + 1) % 8;
-          emitted++;
-
-        }
-
-      } else {
-        // update particle
-        if (options.useAcceleration) {
-          particleSystem.positions[j] += particleSystem.velocities[j] + acceleration.x * particleSystem.ages[i];
-          particleSystem.positions[j+1] += particleSystem.velocities[j+1] + acceleration.y * particleSystem.ages[i];
-          particleSystem.positions[j+2] += particleSystem.velocities[j+2];
-        } else {
-          particleSystem.positions[j] += particleSystem.velocities[j];
-          particleSystem.positions[j+1] += particleSystem.velocities[j+1];
-          particleSystem.positions[j+2] += particleSystem.velocities[j+2];
-        }
-
-
-        if (particleSystem.ages[i] > particleSystem.lifespans[i]) {
-          particleSystem.alive[i] = PARTICLE_DEAD;
-        }
-        particleSystem.ages[i]++;
-      }
-
-    }
-    gl.bindBuffer(gl.ARRAY_BUFFER, particleBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, particleSystem.positions, gl.STATIC_DRAW);
-    gl.bindBuffer(gl.ARRAY_BUFFER, aliveBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, particleSystem.alive, gl.STATIC_DRAW);
-    gl.bindBuffer(gl.ARRAY_BUFFER, particleAgeBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, particleSystem.ages, gl.STATIC_DRAW);
-    gl.bindBuffer(gl.ARRAY_BUFFER, particleTypeBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, particleSystem.type, gl.STATIC_DRAW);
-  }
-
-  function initParticles(){
-    var max = options.maxParticles;
-    particleSystem.positions = new Float32Array(max * 3);
-    particleSystem.velocities = new Float32Array(max * 3);
-    particleSystem.type = new Float32Array(max);
-    particleSystem.alive = new Float32Array(max);
-    particleSystem.ages = new Float32Array(max);
-    particleSystem.lifespans = new Float32Array(max);
-
-    colorsBuffer = new Float32Array(colors.length * 3);
-    for (var i = 0; i < colors.length; i++){
-      colorsBuffer[i * 3] = (colors[i].r / 255);
-      colorsBuffer[i * 3 + 1] = (colors[i].g / 255);
-      colorsBuffer[i * 3 + 2] =(colors[i].b / 255);
-    }
-
-
-    for (var i = 0, j = 0; i < max; i++, j +=3) {
-      var position = {
-        x: 0,
-        y: 0,
-        z: 0
-      };
-      var velocity = {
-        x: 0,
-        y: 0,
-        z: 0
-      };
-
-
-      var alive = PARTICLE_DEAD;
-
-      particleSystem.positions[j] = position.x;
-      particleSystem.positions[j+1] = position.y;
-      particleSystem.positions[j+2] = position.z;
-
-      particleSystem.velocities[j] = velocity.x;
-      particleSystem.velocities[j+1] = velocity.y;
-      particleSystem.velocities[j+2] = velocity.z;
-
-      particleSystem.type[j] = 0;
-      particleSystem.alive[j] = alive;
-
-    }
-
-    particleBuffer = gl.createBuffer();
-    aliveBuffer = gl.createBuffer();
-    particleAgeBuffer = gl.createBuffer();
-    particleTypeBuffer = gl.createBuffer();
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, particleTypeBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, particleSystem.type, gl.STATIC_DRAW);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, particleBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, particleSystem.positions, gl.STATIC_DRAW);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, aliveBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, particleSystem.alive, gl.STATIC_DRAW);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, particleAgeBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, particleSystem.ages, gl.STATIC_DRAW);
-  }
-
-
-  function initBuffers() {
-    initTextures();
-    initParticles();
-    initFrameBuffer();
-  }
-
-  window.frameCount = 0;
-  window.animationCount = 0;
-  function drawPoints(data) {
-    gl.useProgram(particleShader);
-    var pUniform = gl.getUniformLocation(particleShader, "uPMatrix");
-    gl.uniformMatrix4fv(pUniform, false, perspectiveMatrix);
-
-    var mvUniform = gl.getUniformLocation(particleShader, "uMVMatrix");
-    gl.uniformMatrix4fv(mvUniform, false, camera.getModelViewMatrix());
-
-    var frameUniform = gl.getUniformLocation(particleShader, "inFrame");
-    gl.uniform1f(frameUniform, window.frameCount);
-
-    var intensity = gl.getUniformLocation(particleShader, "intensity");
-    if (data && data.bins){
-      gl.uniform1f(intensity, data.max);
-      gl.uniform1fv(gl.getUniformLocation(particleShader, "inFreqs"), data.bins);
-    } else {
-      gl.uniform1f(intensity, -1);
-      gl.uniform1fv(gl.getUniformLocation(particleShader, "inFreqs"), [0,0,0,0,0,0,0,0]);
-    }
-
-
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, smokeTexture);
-    gl.uniform1i(gl.getUniformLocation(particleShader, "inTexture"), 0);
-
-    gl.uniform3fv(gl.getUniformLocation(particleShader, "inColors"), colorsBuffer);
-    gl.uniform1f(gl.getUniformLocation(particleShader, "isPlaying"), audioManager.isPlaying() ? 1.0 : 0.0);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, particleBuffer);
-    gl.enableVertexAttribArray(particlePositionAttribute);
-    gl.vertexAttribPointer(particlePositionAttribute, 3, gl.FLOAT, false, 0, 0);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, aliveBuffer);
-    gl.enableVertexAttribArray(particleAliveAttribute);
-    gl.vertexAttribPointer(particleAliveAttribute, 1, gl.FLOAT, false, 0, 0);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, particleAgeBuffer);
-    gl.enableVertexAttribArray(particleAgeAttribute);
-    gl.vertexAttribPointer(particleAgeAttribute, 1, gl.FLOAT, false, 0, 0);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, particleTypeBuffer);
-    gl.enableVertexAttribArray(particleTypeAttribute);
-    gl.vertexAttribPointer(particleTypeAttribute, 1, gl.FLOAT, false, 0, 0);
-
-    gl.drawArrays(gl.POINTS, 0, particleSystem.positions.length / 3);
-
-    gl.disableVertexAttribArray(particleTypeAttribute);
-    gl.disableVertexAttribArray(particleAgeAttribute);
-    gl.disableVertexAttribArray(particleAliveAttribute);
-    gl.disableVertexAttribArray(particlePositionAttribute);
-  }
-
-  function animate() {
-    moveParticles();
-  }
-
-  function drawBars() {
-    bars = [];
-
-    var bufferLength = audioManager.getFrequencyBinCount();
-    var widthScale = 8.0;
-    var barWidth = widthScale / bufferLength;
-    var barPadding = barWidth * 0.2;
-
-    var data = audioManager.getFrequencyData();
-    var halfWidthScale = (widthScale / 2);
-
-    if (data && data.length > 0){
-      for(var i = 0; i < data.length; i++) {
-        var datum = data[i] / 255;
-
-        var height = datum; // [0, 1]
-        var bottom = 0;
-        var x1 = (i * (barWidth)) - halfWidthScale;
-        var x2 = x1 + (barWidth - barPadding);
-        var z = 1;
-        var bar = [
-          x1, height, z,
-          x1, bottom, z,
-          x2, bottom, z,
-          x2, height, z,
-          x1, height, z,
-          x2, bottom, z
-        ];
-        bars = bars.concat(bar);
-
-      }
-    }
-
-      barBuffer = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, barBuffer);
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(bars), gl.STATIC_DRAW);
-
-    (function () {
-        gl.useProgram(barShader);
-        var pUniform = gl.getUniformLocation(barShader, "uPMatrix");
-        gl.uniformMatrix4fv(pUniform, false, perspectiveMatrix);
-
-        var mvUniform = gl.getUniformLocation(barShader, "uMVMatrix");
-        gl.uniformMatrix4fv(mvUniform, false, camera.getModelViewMatrix());
-
-        var mUniform = gl.getUniformLocation(barShader, "uMMatrix");
-        var modelMatrix = mat4.create();
-
-        var vector = vec4.fromValues(0, -4, 0, 0);
-        mat4.translate(modelMatrix, modelMatrix, vector);
-
-
-        // var m = Matrix.Translation($V([v[0], v[1], v[2]])).ensure4x4();
-        // modelMatrix = modelMatrix.x(m);
-        gl.uniformMatrix4fv(mUniform, false, modelMatrix);
-
-        gl.bindBuffer(gl.ARRAY_BUFFER, barBuffer);
-        gl.enableVertexAttribArray(barVerticesLocation);
-        gl.vertexAttribPointer(barVerticesLocation, 3, gl.FLOAT, false, 0, 0);
-
-        gl.drawArrays(gl.TRIANGLES, 0, bars.length / 3.0);
-
-        gl.disableVertexAttribArray(barVerticesLocation);
-      })()
-  }
-
-  function drawScene() {
-    resize();
-    stats.begin();
-
-
-    setTimeout(function() {
-      window.frameCount += 1;
-    }, 0);
-
-    gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-    var aspect = canvas.clientWidth / canvas.clientHeight;
-    perspectiveMatrix = mat4.create();
-    mat4.perspective(perspectiveMatrix, MathUtils.degreesToRadians(50.0), aspect, 0.1, 100.0);
-
-    var audioData = audioManager.getNormalizedFrequencyData() || {};
-
-    if (smokeReady) {
-      drawPoints(audioData);
-
-
-      var currentTime = (new Date).getTime();
-      if (animationUpdateTime) {
-        var delta = currentTime - animationUpdateTime;
-        if (delta > animationFrameDelay) {
-          animationUpdateTime = currentTime;
-          window.animationCount++;
-          animate();
-        }
-      } else {
-        animationUpdateTime = currentTime;
-      }
-    }
-
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.useProgram(quadShader);
-    gl.enableVertexAttribArray(quadVerticesLocation);
-
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, frameTexture);
-    var textureLocation = gl.getUniformLocation(quadShader, "inTexture");
-    gl.uniform1i(textureLocation, 0);
-
-    var inVolume = 0;
-    if (options.blur) {
-      inVolume = audioData.average || 0;
-    }
-
-    gl.uniform1f(gl.getUniformLocation(quadShader, "inWidth"), canvas.clientWidth);
-    gl.uniform1f(gl.getUniformLocation(quadShader, "inHeight"), canvas.clientHeight);
-    gl.uniform1f(gl.getUniformLocation(quadShader, "inVolume"), inVolume);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
-    gl.vertexAttribPointer(quadVerticesLocation, 2, gl.FLOAT, false, 0, 0);
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
-
-
-    gl.disableVertexAttribArray(quadVerticesLocation);
-
-    if (audioManager && audioManager.isPlaying() && options.showBars) {
-      drawBars();
-    }
-
-    stats.end();
-    requestAnimationFrame(drawScene);
-  }
-  function keyHandler (event) {
-    var key = event.keyCode;
-    var keyMap = {
-      '37': {
-        id: "left_arrow",
-        action: "minus_yaw"
-      },
-      '38': {
-        id: "up_arrow",
-        action: "plus_pitch"
-      },
-      '39': {
-        id: "right_arrow",
-        action: "plus_yaw"
-      },
-      '40': {
-        id: "down_arrow",
-        action: "minus_pitch"
-      },
-      '87': {
-        id: "W",
-        action: "move_forward"
-      },
-      '65': {
-        id: "A",
-        action: "move_left"
-      },
-      '83': {
-        id: "S",
-        action: "move_backward"
-      },
-      '68': {
-        id: "D",
-        action: "move_right"
-      }
+    // ref for solar irradiances: https://en.wikipedia.org/wiki/Lux
+    var hemiLuminousIrradiances = {
+      "0.0001 lx (Moonless Night)": 0.0001,
+      "0.002 lx (Night Airglow)": 0.002,
+      "0.5 lx (Full Moon)": 0.5,
+      "3.4 lx (City Twilight)": 3.4,
+      "50 lx (Living Room)": 50,
+      "100 lx (Very Overcast)": 100,
+      "350 lx (Office Room)": 350,
+      "400 lx (Sunrise/Sunset)": 400,
+      "1000 lx (Overcast)": 1000,
+      "18000 lx (Daylight)": 18000,
+      "50000 lx (Direct Sun)": 50000
     };
 
-    var pitch_delta = 0.1;
-    var yaw_delta = 0.1;
-    var movement_delta = [0.2, 0.5, 0.5];
+    var params = {
+      shadows: true,
+      exposure: 0.68,
+      bulbPower: Object.keys( bulbLuminousPowers )[ 4 ],
+      hemiIrradiance: Object.keys( hemiLuminousIrradiances )[0]
+    };
 
-    if (!keyMap[key]) {
-      return;
+
+    const clock = new THREE.Clock();
+
+    init();
+    animate();
+
+    function init() {
+
+
+      camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 100 );
+      camera.position.x = -4;
+      camera.position.z = 4;
+      camera.position.y = 2;
+
+      scene = new THREE.Scene();
+
+      var bulbGeometry = new THREE.SphereGeometry( 0.02, 16, 8 );
+      bulbLight = new THREE.PointLight( 0xffee88, 1, 100, 2 );
+
+      bulbMat = new THREE.MeshStandardMaterial( {
+        emissive: 0xffffee,
+        emissiveIntensity: 1,
+        color: 0x000000
+      });
+      bulbLight.add( new THREE.Mesh( bulbGeometry, bulbMat ) );
+      bulbLight.position.set( 0, 2, 0 );
+      bulbLight.castShadow = true;
+      scene.add( bulbLight );
+
+      hemiLight = new THREE.HemisphereLight( 0xddeeff, 0x0f0e0d, 0.02 );
+      scene.add( hemiLight );
+
+      floorMat = new THREE.MeshStandardMaterial( {
+        roughness: 0.8,
+        color: 0xffffff,
+        metalness: 0.2,
+        bumpScale: 0.0005,
+      });
+      var textureLoader = new THREE.TextureLoader();
+      textureLoader.load( "http://threejs.org/examples/textures/hardwood2_diffuse.jpg", function( map ) {
+        map.wrapS = THREE.RepeatWrapping;
+        map.wrapT = THREE.RepeatWrapping;
+        map.anisotropy = 4;
+        map.repeat.set( 10, 24 );
+        floorMat.map = map;
+        floorMat.needsUpdate = true;
+      } );
+      textureLoader.load( "http://threejs.org/examples/textures/hardwood2_bump.jpg", function( map ) {
+        map.wrapS = THREE.RepeatWrapping;
+        map.wrapT = THREE.RepeatWrapping;
+        map.anisotropy = 4;
+        map.repeat.set( 10, 24 );
+        floorMat.bumpMap = map;
+        floorMat.needsUpdate = true;
+      } );
+      textureLoader.load( "http://threejs.org/examples/textures/hardwood2_roughness.jpg", function( map ) {
+        map.wrapS = THREE.RepeatWrapping;
+        map.wrapT = THREE.RepeatWrapping;
+        map.anisotropy = 4;
+        map.repeat.set( 10, 24 );
+        floorMat.roughnessMap = map;
+        floorMat.needsUpdate = true;
+      } );
+
+      cubeMat = new THREE.MeshStandardMaterial( {
+        roughness: 0.7,
+        color: 0xffffff,
+        bumpScale: 0.002,
+        metalness: 0.2
+      });
+      textureLoader.load( "http://threejs.org/examples/textures/brick_diffuse.jpg", function( map ) {
+        map.wrapS = THREE.RepeatWrapping;
+        map.wrapT = THREE.RepeatWrapping;
+        map.anisotropy = 4;
+        map.repeat.set( 1, 1 );
+        cubeMat.map = map;
+        cubeMat.needsUpdate = true;
+      } );
+      textureLoader.load( "http://threejs.org//examples/textures/brick_bump.jpg", function( map ) {
+        map.wrapS = THREE.RepeatWrapping;
+        map.wrapT = THREE.RepeatWrapping;
+        map.anisotropy = 4;
+        map.repeat.set( 1, 1 );
+        cubeMat.bumpMap = map;
+        cubeMat.needsUpdate = true;
+      } );
+
+      ballMat = new THREE.MeshStandardMaterial( {
+        color: 0xffffff,
+        roughness: 0.5,
+        metalness: 1.0
+      });
+      textureLoader.load( "http://threejs.org//examples/textures/planets/earth_atmos_2048.jpg", function( map ) {
+        map.anisotropy = 4;
+        ballMat.map = map;
+        ballMat.needsUpdate = true;
+      } );
+      textureLoader.load( "http://threejs.org//examples/textures/planets/earth_specular_2048.jpg", function( map ) {
+        map.anisotropy = 4;
+        ballMat.metalnessMap = map;
+        ballMat.needsUpdate = true;
+      } );
+
+      var floorGeometry = new THREE.PlaneBufferGeometry( 20, 20 );
+      var floorMesh = new THREE.Mesh( floorGeometry, floorMat );
+      floorMesh.receiveShadow = true;
+      floorMesh.rotation.x = -Math.PI / 2.0;
+      scene.add( floorMesh );
+
+      var ballGeometry = new THREE.SphereGeometry( 0.5, 32, 32 );
+      var ballMesh = new THREE.Mesh( ballGeometry, ballMat );
+      ballMesh.position.set( 1, 0.5, 1 );
+      ballMesh.rotation.y = Math.PI;
+      ballMesh.castShadow = true;
+      scene.add( ballMesh );
+
+      var boxGeometry = new THREE.BoxGeometry( 0.5, 0.5, 0.5 );
+      var boxMesh = new THREE.Mesh( boxGeometry, cubeMat );
+      boxMesh.position.set( -0.5, 0.25, -1 );
+      boxMesh.castShadow = true;
+      scene.add( boxMesh );
+
+      var boxMesh2 = new THREE.Mesh( boxGeometry, cubeMat );
+      boxMesh2.position.set( 0, 0.25, -5 );
+      boxMesh2.castShadow = true;
+      scene.add( boxMesh2 );
+
+      var boxMesh3 = new THREE.Mesh( boxGeometry, cubeMat );
+      boxMesh3.position.set( 7, 0.25, 0 );
+      boxMesh3.castShadow = true;
+      scene.add( boxMesh3 );
+
+
+      renderer = new THREE.WebGLRenderer({
+        canvas: canvas
+      });
+      renderer.physicallyCorrectLights = true;
+      renderer.gammaInput = true;
+      renderer.gammaOutput = true;
+      renderer.shadowMap.enabled = true;
+      renderer.toneMapping = THREE.ReinhardToneMapping;
+      renderer.setPixelRatio( window.devicePixelRatio );
+      renderer.setSize( window.innerWidth, window.innerHeight );
+
+
+      var controls = new THREE.OrbitControls( camera, renderer.domElement );
+      controls.target.set( 0, 0, 0 );
+      controls.update();
+
+      window.addEventListener( 'resize', onWindowResize, false );
+
     }
 
-    switch (keyMap[key].action) {
-      case "minus_pitch":
-        camera.pitch -= pitch_delta;
-      break;
-      case "plus_pitch":
-        camera.pitch += pitch_delta;
-      break;
-      case "plus_yaw":
-        camera.yaw += yaw_delta;
-      break;
-      case "minus_yaw":
-        camera.yaw -= yaw_delta;
-      break;
-      case "move_forward":
-        camera.position[2] += movement_delta[2];
-      break;
-      case "move_backward":
-        camera.position[2] -= movement_delta[2];
-      break;
-      case "move_left":
-        camera.position[0] += movement_delta[0];
-      break;
-      case "move_right":
-        camera.position[0] -= movement_delta[0];
-      break;
+    function onWindowResize() {
+
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+
+      renderer.setSize( window.innerWidth, window.innerHeight );
 
     }
 
-  }
+    //
 
-  function Camera () {
-    this.position = [0, 0, -10];
-    this.pitch = 0;
-    this.yaw = 0;
+    function animate() {
 
-  }
+      requestAnimationFrame( animate );
 
+      render();
 
-  Camera.prototype.getModelViewMatrix = function () {
-    var result = mat4.create();
-    mat4.rotateX(result, result, -this.pitch);
-    mat4.rotateY(result, result, this.yaw);
-    mat4.translate(result, result, this.position);
-    return result;
-  }
-
-  var camera;
-
-
-  function onLoad () {
-
-    $(document).on("keydown", keyHandler);
-    stats = new Stats();
-    stats.setMode(0); // 0: fps, 1: ms, 2: mb
-
-    // align top-left
-    stats.domElement.style.position = 'absolute';
-    stats.domElement.style.right = '0px';
-    stats.domElement.style.top = '0px';
-
-    document.body.appendChild( stats.domElement );
-
-    var ShaderManager = require('shaderManager.js');
-
-    var shaderManager = new ShaderManager();
-    uiController.bind();
-
-    camera = window.camera = new Camera();
-
-
-    var canvas = document.getElementById("canvas");
-    gl = initWebGL(canvas);
-    shaderManager.compileShaders(gl);
-    initBuffers();
-
-    particleShader = gl.createProgram();
-    gl.attachShader(particleShader, shaderManager.vertex['particleShader']);
-    gl.attachShader(particleShader, shaderManager.fragment['particleShader']);
-    gl.linkProgram(particleShader);
-
-    barShader = gl.createProgram();
-    gl.attachShader(barShader, shaderManager.vertex['barShader']);
-    gl.attachShader(barShader, shaderManager.fragment['barShader']);
-    gl.linkProgram(barShader);
-
-    quadShader = gl.createProgram();
-    gl.attachShader(quadShader, shaderManager.vertex['quadShader']);
-    gl.attachShader(quadShader, shaderManager.fragment['quadShader']);
-    gl.linkProgram(quadShader);
-
-    gl.enable (gl.BLEND);
-    gl.blendEquation( gl.FUNC_ADD );
-    // gl.blendFunc( gl.SRC_ALPHA, gl.DST_ALPHA );
-    // gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
-    // gl.blendFunc( gl.SRC_ALPHA, gl.ONE_MINUS_DST_ALPHA );
-
-    gl.useProgram(particleShader);
-    particlePositionAttribute = gl.getAttribLocation(particleShader, "inCoord");
-    particleAliveAttribute = gl.getAttribLocation(particleShader, "inAlive");
-    particleAgeAttribute = gl.getAttribLocation(particleShader, "inAge");
-    particleTypeAttribute = gl.getAttribLocation(particleShader, "inType");
-
-    gl.useProgram(barShader);
-    barVerticesLocation = gl.getAttribLocation(barShader, "aVertexPosition");
-
-    gl.useProgram(quadShader);
-    quadVerticesLocation = gl.getAttribLocation(quadShader, "inCoord");
-
-
-    // Only continue if WebGL is available and working
-    gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
-    if (gl) {
-      gl.clearColor(0.0, 0.0, 0.0, 1.0);
-      gl.disable(gl.DEPTH_TEST);
-      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-      requestAnimationFrame(drawScene);
     }
-  }
 
-  function resize() {
-    var width = gl.canvas.clientWidth;
-    var height = gl.canvas.clientHeight;
-    if (gl.canvas.width != width ||
-        gl.canvas.height != height) {
+    var previousShadowMap = false;
 
-       initFrameBuffer();
-       gl.canvas.width = width;
-       gl.canvas.height = height;
-       gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+    function render() {
+
+      renderer.toneMappingExposure = Math.pow( params.exposure, 5.0 ); // to allow for very bright scenes.
+      renderer.shadowMap.enabled = params.shadows;
+      bulbLight.castShadow = params.shadows;
+      if( params.shadows !== previousShadowMap ) {
+        ballMat.needsUpdate = true;
+        cubeMat.needsUpdate = true;
+        floorMat.needsUpdate = true;
+        previousShadowMap = params.shadows;
+      }
+      bulbLight.power = bulbLuminousPowers[ params.bulbPower ];
+      bulbMat.emissiveIntensity = bulbLight.intensity / Math.pow( 0.02, 2.0 ); // convert from intensity to irradiance at bulb surface
+
+      hemiLight.intensity = hemiLuminousIrradiances[ params.hemiIrradiance ];
+      var time = Date.now() * 0.0005;
+      var delta = clock.getDelta();
+
+      bulbLight.position.y = Math.cos( time ) * 0.75 + 1.25;
+
+      renderer.render( scene, camera );
+
     }
-  }
-
-
-
-})();

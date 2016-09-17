@@ -1,3 +1,4 @@
+var webpack = require("webpack");
 var ExtractTextPlugin = require('extract-text-webpack-plugin');
 
 var webpackConfig = {
@@ -36,7 +37,10 @@ var webpackConfig = {
     ]
   },
   plugins: [
-      new ExtractTextPlugin('css/styles.css')
+      new ExtractTextPlugin('css/styles.css'),
+      new webpack.DefinePlugin({
+        VERSION: JSON.stringify(new Date())
+      })
    ],
   devServer: {
     port: 3000,
