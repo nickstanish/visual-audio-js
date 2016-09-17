@@ -1,6 +1,7 @@
-var ExtractTextPlugin = require('extract-text-webpack-plugin');
+const webpack = require("webpack");
+const ExtractTextPlugin = require('extract-text-webpack-plugin');
 
-var webpackConfig = {
+const webpackConfig = {
   devtool: 'source-map',
   entry: [
     './node_modules/webpack/hot/dev-server.js',
@@ -36,7 +37,10 @@ var webpackConfig = {
     ]
   },
   plugins: [
-      new ExtractTextPlugin('css/styles.css')
+      new ExtractTextPlugin('css/styles.css'),
+      new webpack.DefinePlugin({
+        VERSION: JSON.stringify(new Date())
+      })
    ],
   devServer: {
     port: 3000,

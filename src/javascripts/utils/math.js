@@ -5,3 +5,14 @@ export function degreesToRadians (degrees) {
 export function radiansToDegrees (radians) {
   return radians * (180.0 / Math.PI);
 }
+
+/**
+* Inclusive [min, max]
+*/
+export function getRandomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+export function getRandom(min, max) {
+  return Math.random() * (max - min) + min;
+}
