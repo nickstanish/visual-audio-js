@@ -410,7 +410,6 @@ import GPUParticleContainer from 'particles/ParticleContainer';
   }
 
   window.frameCount = 0;
-  window.animationCount = 0;
   function drawPoints(data) {
     gl.useProgram(particleShader);
     var pUniform = gl.getUniformLocation(particleShader, "uPMatrix");
@@ -583,7 +582,7 @@ import GPUParticleContainer from 'particles/ParticleContainer';
 
     const clockDelta = clock.getDelta() * 1;
 		tick += clockDelta;
-    const spawnRate = 10;
+    const spawnRate = 50;
 
 
 		if (tick < 0) tick = 0;
@@ -604,7 +603,10 @@ import GPUParticleContainer from 'particles/ParticleContainer';
 
     const aspect = canvas.clientWidth / canvas.clientHeight;
     perspectiveMatrix = mat4.create();
-    mat4.perspective(perspectiveMatrix, MathUtils.degreesToRadians(50.0), aspect, 0.1, 100.0);
+    const FIELD_OF_VIEW_DEGREES = 50.0;
+    const NEAR = 0.1;
+    const FAR = 1000.0;
+    mat4.perspective(perspectiveMatrix, MathUtils.degreesToRadians(FIELD_OF_VIEW_DEGREES), aspect, NEAR, FAR);
 
     var audioData = audioManager.getNormalizedFrequencyData() || {};
 
@@ -613,13 +615,12 @@ import GPUParticleContainer from 'particles/ParticleContainer';
       drawParticles();
 
 
-      var currentTime = (new Date).getTime();
+      const currentTime = (new Date).getTime();
       if (animationUpdateTime) {
-        var delta = currentTime - animationUpdateTime;
+        const delta = currentTime - animationUpdateTime;
         if (delta > animationFrameDelay) {
           animationUpdateTime = currentTime;
-          window.animationCount++;
-          animate();
+          // animate();
         }
       } else {
         animationUpdateTime = currentTime;
@@ -765,9 +766,9 @@ import GPUParticleContainer from 'particles/ParticleContainer';
 
     document.body.appendChild( stats.domElement );
 
-    var ShaderManager = require('shaderManager.js');
+    const ShaderManager = require('shaderManager.js');
 
-    var shaderManager = new ShaderManager();
+    const shaderManager = new ShaderManager();
     uiController.bind();
 
     camera = window.camera = new Camera();

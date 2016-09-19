@@ -15,10 +15,6 @@ class GPUParticleContainer {
     this.randomsStore = new RandomsStore(() => MathUtils.getRandom(-1, 1));
 
     // const particlesPerArray = Math.floor(this.PARTICLE_COUNT / this.MAX_ATTRIBUTES);
-
-    //  extend Object3D
-    // THREE.Object3D.apply(this, arguments);
-
     this.particles = [];
     this.deadParticles = [];
     this.particlesAvailableSlot = [];
@@ -36,12 +32,6 @@ class GPUParticleContainer {
     this.geometryPosStart = new Float32Array(this.PARTICLE_COUNT * 4);
     this.geometryVelCol = new Float32Array(this.PARTICLE_COUNT * 4);
 
-    // this.particleShaderGeo.addAttribute('position', new THREE.BufferAttribute(this.particleVertices, 3));
-    // this.particleShaderGeo.addAttribute('particlePositionsStartTime', new THREE.BufferAttribute(this.particlePositionsStartTime, 4).setDynamic(true));
-    // this.particleShaderGeo.addAttribute('particleVelColSizeLife', new THREE.BufferAttribute(this.particleVelColSizeLife, 4).setDynamic(true));
-    // this.posStart = this.particleShaderGeo.getAttribute('particlePositionsStartTime')
-    // this.velCol = this.particleShaderGeo.getAttribute('particleVelColSizeLife');
-    // this.particleShaderMat = this.GPUParticleSystem.particleShaderMat;
     this.offset = 0;
     this.count = 0;
   }
@@ -177,27 +167,23 @@ class GPUParticleContainer {
     if (this.particleUpdate == true) {
       this.particleUpdate = false;
 
-      // use bufferSubData to prevent uploading the entire buffer
-      gl.bindBuffer(gl.ARRAY_BUFFER, this.geometryPosStartBuffer);
-      gl.bufferData(gl.ARRAY_BUFFER, this.geometryPosStart, gl.DYNAMIC_DRAW);
-
-      gl.bindBuffer(gl.ARRAY_BUFFER, this.geometryVelColBuffer);
-      gl.bufferData(gl.ARRAY_BUFFER, this.geometryVelCol, gl.DYNAMIC_DRAW);
       // if we can get away with a partial buffer update, do so
-      /*
-      if (this.offset + this.count < this.PARTICLE_COUNT) {
 
-        // gl.bufferSubData(gl.ARRAY_BUFFER, particleId*particleSize*sizeOfFloat, data);
+      if (this.count < this.PARTICLE_COUNT) {
+        const beginIndex = this.offset * 4;
+        const endIndex = beginIndex + (this.count * 4);
+        const bufferOffset = beginIndex * 4; // 4 bytes per Float32
 
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.geometryPosStartBuffer);
+        gl.bufferSubData(gl.ARRAY_BUFFER, bufferOffset, this.geometryPosStart.subarray(beginIndex, endIndex));
 
-        this.posStart.updateRange.offset = this.velCol.updateRange.offset = this.offset * 4;
-        this.posStart.updateRange.count = this.velCol.updateRange.count = this.count * 4;
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.geometryVelColBuffer);
+        gl.bufferSubData(gl.ARRAY_BUFFER, bufferOffset, this.geometryVelCol.subarray(beginIndex, endIndex));
+
       } else {
-        this.posStart.updateRange.offset = 0;
-        this.posStart.updateRange.count = this.velCol.updateRange.count = (this.PARTICLE_COUNT * 4);
+        gl.bufferData(gl.ARRAY_BUFFER, this.geometryPosStart, gl.DYNAMIC_DRAW);
+        gl.bufferData(gl.ARRAY_BUFFER, this.geometryVelColBuffer, gl.DYNAMIC_DRAW);
       }
-      */
-
 
       this.offset = 0;
       this.count = 0;
