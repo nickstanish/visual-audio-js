@@ -57,5 +57,15 @@ export const config = [
     name: 'quadShader',
     type: TYPE_FRAGMENT,
     source: require('raw!quad.fragment.glsl')
+  },
+  {
+    name: 'gpuParticleShader',
+    type: TYPE_VERTEX,
+    source: require('raw!gpuParticle.vertex.glsl')
+  },
+  {
+    name: 'gpuParticleShader',
+    type: TYPE_FRAGMENT,
+    source: require('raw!gpuParticle.fragment.glsl')
   }
 ];

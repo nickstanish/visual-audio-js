@@ -3,7 +3,6 @@
 *
 */
 
-/* global Float32Array VERSION */
 require('less/styles.less');
 window.VISUAL_AUDIO = {
   VERSION: VERSION
@@ -12,13 +11,23 @@ window.VISUAL_AUDIO = {
 import * as MathUtils from 'utils/math';
 import * as BrowserUtils from 'utils/browser';
 import UIController from 'ui/uiController';
-import AudioManager from 'audio/audioManager.js';
+import AudioManager from 'audio/audioManager';
+import Clock from 'three/clock';
+import GPUParticleContainer from 'particles/ParticleContainer';
 
 (function () {
   const polyfill = require("polyfills");
   const glMatrix = require('gl-matrix');
   glMatrix.glMatrix.setMatrixArrayType(Float32Array);
   const {mat4, vec4} = glMatrix;
+
+  const clock = new Clock(true);
+  const particleContainer = new GPUParticleContainer();
+  let tick = 0;
+
+  let gpuParticleShader;
+  let particlePositionsStartTimeAttribute;
+  let particleVelColSizeLifeAttribute;
 
   const options = {
     maxParticles: 5000,
@@ -321,7 +330,7 @@ import AudioManager from 'audio/audioManager.js';
 
     }
     gl.bindBuffer(gl.ARRAY_BUFFER, particleBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, particleSystem.positions, gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, particleSystem.positions, gl.DYNAMIC_DRAW);
     gl.bindBuffer(gl.ARRAY_BUFFER, aliveBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, particleSystem.alive, gl.STATIC_DRAW);
     gl.bindBuffer(gl.ARRAY_BUFFER, particleAgeBuffer);
@@ -384,7 +393,7 @@ import AudioManager from 'audio/audioManager.js';
     gl.bufferData(gl.ARRAY_BUFFER, particleSystem.type, gl.STATIC_DRAW);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, particleBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, particleSystem.positions, gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, particleSystem.positions, gl.DYNAMIC_DRAW);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, aliveBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, particleSystem.alive, gl.STATIC_DRAW);
@@ -524,6 +533,45 @@ import AudioManager from 'audio/audioManager.js';
       })()
   }
 
+  function drawParticles() {
+    // uniform sampler2D tNoise;
+
+
+    gl.useProgram(gpuParticleShader);
+    const projectionMatricUniform = gl.getUniformLocation(gpuParticleShader, "projectionMatrix");
+    gl.uniformMatrix4fv(projectionMatricUniform, false, perspectiveMatrix);
+
+    const modelViewMatrixUniform = gl.getUniformLocation(gpuParticleShader, "modelViewMatrix");
+    gl.uniformMatrix4fv(modelViewMatrixUniform, false, camera.getModelViewMatrix());
+
+    const positionUniform = gl.getUniformLocation(gpuParticleShader, "position");
+    gl.uniform3fv(positionUniform, [0, 0, 0]);
+
+    const uTimeUniform = gl.getUniformLocation(gpuParticleShader, "uTime");
+    gl.uniform1f(uTimeUniform, particleContainer.time);
+
+    const uScaleUniform = gl.getUniformLocation(gpuParticleShader, "uScale");
+    gl.uniform1f(uScaleUniform, 1);
+
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, smokeTexture);
+    gl.uniform1i(gl.getUniformLocation(gpuParticleShader, "tSprite"), 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, particleContainer.geometryPosStartBuffer);
+    gl.enableVertexAttribArray(particlePositionsStartTimeAttribute);
+    gl.vertexAttribPointer(particlePositionsStartTimeAttribute, 4, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, particleContainer.geometryVelColBuffer);
+    gl.enableVertexAttribArray(particleVelColSizeLifeAttribute);
+    gl.vertexAttribPointer(particleVelColSizeLifeAttribute, 4, gl.FLOAT, false, 0, 0);
+
+    gl.drawArrays(gl.POINTS, 0, particleContainer.PARTICLE_COUNT);
+
+    gl.disableVertexAttribArray(particlePositionsStartTimeAttribute);
+    gl.disableVertexAttribArray(particleVelColSizeLifeAttribute);
+  }
+
   function drawScene() {
     resize();
     stats.begin();
@@ -533,17 +581,36 @@ import AudioManager from 'audio/audioManager.js';
       window.frameCount += 1;
     }, 0);
 
+    const clockDelta = clock.getDelta() * 1;
+		tick += clockDelta;
+    const spawnRate = 10;
+
+
+		if (tick < 0) tick = 0;
+
+		if (clockDelta > 0) {
+      particleContainer.update(tick, gl);
+			for (let i = 0; i < spawnRate * clockDelta; i++) {
+				particleContainer.spawnParticle({
+          velocityRandomness: 1
+        });
+			}
+		}
+
+
+
     gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    var aspect = canvas.clientWidth / canvas.clientHeight;
+    const aspect = canvas.clientWidth / canvas.clientHeight;
     perspectiveMatrix = mat4.create();
     mat4.perspective(perspectiveMatrix, MathUtils.degreesToRadians(50.0), aspect, 0.1, 100.0);
 
     var audioData = audioManager.getNormalizedFrequencyData() || {};
 
     if (smokeReady) {
-      drawPoints(audioData);
+      // drawPoints(audioData);
+      drawParticles();
 
 
       var currentTime = (new Date).getTime();
@@ -568,7 +635,7 @@ import AudioManager from 'audio/audioManager.js';
     var textureLocation = gl.getUniformLocation(quadShader, "inTexture");
     gl.uniform1i(textureLocation, 0);
 
-    var inVolume = 0;
+    let inVolume = 0;
     if (options.blur) {
       inVolume = audioData.average || 0;
     }
@@ -675,7 +742,7 @@ import AudioManager from 'audio/audioManager.js';
 
 
   Camera.prototype.getModelViewMatrix = function () {
-    var result = mat4.create();
+    let result = mat4.create();
     mat4.rotateX(result, result, -this.pitch);
     mat4.rotateY(result, result, this.yaw);
     mat4.translate(result, result, this.position);
@@ -710,11 +777,17 @@ import AudioManager from 'audio/audioManager.js';
     gl = initWebGL(canvas);
     shaderManager.compileShaders(gl);
     initBuffers();
+    particleContainer.init(gl);
 
     particleShader = gl.createProgram();
     gl.attachShader(particleShader, shaderManager.vertex['particleShader']);
     gl.attachShader(particleShader, shaderManager.fragment['particleShader']);
     gl.linkProgram(particleShader);
+
+    gpuParticleShader = gl.createProgram();
+    gl.attachShader(gpuParticleShader, shaderManager.vertex['gpuParticleShader']);
+    gl.attachShader(gpuParticleShader, shaderManager.fragment['gpuParticleShader']);
+    gl.linkProgram(gpuParticleShader);
 
     barShader = gl.createProgram();
     gl.attachShader(barShader, shaderManager.vertex['barShader']);
@@ -738,6 +811,11 @@ import AudioManager from 'audio/audioManager.js';
     particleAliveAttribute = gl.getAttribLocation(particleShader, "inAlive");
     particleAgeAttribute = gl.getAttribLocation(particleShader, "inAge");
     particleTypeAttribute = gl.getAttribLocation(particleShader, "inType");
+
+
+    gl.useProgram(gpuParticleShader);
+    particlePositionsStartTimeAttribute = gl.getAttribLocation(gpuParticleShader, "particlePositionsStartTime");
+    particleVelColSizeLifeAttribute = gl.getAttribLocation(gpuParticleShader, "particleVelColSizeLife");
 
     gl.useProgram(barShader);
     barVerticesLocation = gl.getAttribLocation(barShader, "aVertexPosition");

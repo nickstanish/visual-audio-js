@@ -5,7 +5,10 @@
     "commonjs": true
   },
   "globals": {
-    "Promise": true
+    "Promise": true,
+    "Float32Array": true,
+    "Uint8Array": true,
+    "VERSION": true
   },
   "parser": "babel-eslint",
   "parserOptions": {
