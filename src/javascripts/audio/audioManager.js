@@ -13,7 +13,7 @@ export const AUDIO_STATE = {
   PAUSED: "PAUSED"
 };
 
-const DEFAULT_SMOOTHING = 0.5; // 0.85
+const DEFAULT_SMOOTHING = 0.85;
 
 class AudioManager {
   constructor() {

@@ -221,59 +221,6 @@ import * as InputActions from 'input/inputActions';
     initFrameBuffer();
   }
 
-  window.frameCount = 0;
-  function drawPoints(data) {
-    gl.useProgram(particleShader);
-    var pUniform = gl.getUniformLocation(particleShader, "uPMatrix");
-    gl.uniformMatrix4fv(pUniform, false, perspectiveMatrix);
-
-    var mvUniform = gl.getUniformLocation(particleShader, "uMVMatrix");
-    gl.uniformMatrix4fv(mvUniform, false, camera.getModelViewMatrix());
-
-    var frameUniform = gl.getUniformLocation(particleShader, "inFrame");
-    gl.uniform1f(frameUniform, window.frameCount);
-
-    var intensity = gl.getUniformLocation(particleShader, "intensity");
-    if (data && data.bins){
-      gl.uniform1f(intensity, data.max);
-      gl.uniform1fv(gl.getUniformLocation(particleShader, "inFreqs"), data.bins);
-    } else {
-      gl.uniform1f(intensity, -1);
-      gl.uniform1fv(gl.getUniformLocation(particleShader, "inFreqs"), [0,0,0,0,0,0,0,0]);
-    }
-
-
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, smokeTexture);
-    gl.uniform1i(gl.getUniformLocation(particleShader, "inTexture"), 0);
-
-    gl.uniform3fv(gl.getUniformLocation(particleShader, "inColors"), colorsBuffer);
-    gl.uniform1f(gl.getUniformLocation(particleShader, "isPlaying"), audioManager.isPlaying() ? 1.0 : 0.0);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, particleBuffer);
-    gl.enableVertexAttribArray(particlePositionAttribute);
-    gl.vertexAttribPointer(particlePositionAttribute, 3, gl.FLOAT, false, 0, 0);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, aliveBuffer);
-    gl.enableVertexAttribArray(particleAliveAttribute);
-    gl.vertexAttribPointer(particleAliveAttribute, 1, gl.FLOAT, false, 0, 0);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, particleAgeBuffer);
-    gl.enableVertexAttribArray(particleAgeAttribute);
-    gl.vertexAttribPointer(particleAgeAttribute, 1, gl.FLOAT, false, 0, 0);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, particleTypeBuffer);
-    gl.enableVertexAttribArray(particleTypeAttribute);
-    gl.vertexAttribPointer(particleTypeAttribute, 1, gl.FLOAT, false, 0, 0);
-
-    gl.drawArrays(gl.POINTS, 0, particleSystem.positions.length / 3);
-
-    gl.disableVertexAttribArray(particleTypeAttribute);
-    gl.disableVertexAttribArray(particleAgeAttribute);
-    gl.disableVertexAttribArray(particleAliveAttribute);
-    gl.disableVertexAttribArray(particlePositionAttribute);
-  }
-
   function drawBars() {
     bars = [];
 
@@ -337,9 +284,11 @@ import * as InputActions from 'input/inputActions';
       gl.disableVertexAttribArray(barVerticesLocation);
   }
 
-  function drawParticles(particleContainer) {
+  function drawParticles(particleContainer, audioIntensity = 0.5) {
     // uniform sampler2D tNoise;
 
+    const BASE_SCALE = 5;
+    const SCALE_MULTIPLIER = 20;
 
     gl.useProgram(gpuParticleShader);
     const projectionMatricUniform = gl.getUniformLocation(gpuParticleShader, "projectionMatrix");
@@ -355,7 +304,7 @@ import * as InputActions from 'input/inputActions';
     gl.uniform1f(uTimeUniform, particleContainer.time);
 
     const uScaleUniform = gl.getUniformLocation(gpuParticleShader, "uScale");
-    gl.uniform1f(uScaleUniform, 40);
+    gl.uniform1f(uScaleUniform, BASE_SCALE + SCALE_MULTIPLIER * audioIntensity);
 
 
     gl.activeTexture(gl.TEXTURE0);
@@ -385,9 +334,11 @@ import * as InputActions from 'input/inputActions';
       particleContainer.update(tick, gl);
       for (let j = 0; j < spawnRate * clockDelta && j < MAX_SPAWN; j++) {
         particleContainer.spawnParticle({
-          velocityRandomness: 1,
+          velocityRandomness: 0.4,
           color: COLORS[i].toValue(),
-          colorRandomness: 0
+          colorRandomness: 0,
+          lifetime: 10,
+          sizeRandomness: 0.5
         });
       }
     }
@@ -400,10 +351,6 @@ import * as InputActions from 'input/inputActions';
     resize();
     stats.begin();
 
-
-    setTimeout(function() {
-      window.frameCount += 1;
-    }, 0);
 
     const clockDelta = clock.getDelta() * 1;
 		tick += clockDelta;
@@ -428,13 +375,21 @@ import * as InputActions from 'input/inputActions';
     const FAR = 1000.0;
     mat4.perspective(perspectiveMatrix, MathUtils.degreesToRadians(FIELD_OF_VIEW_DEGREES), aspect, NEAR, FAR);
 
-    var audioData = audioManager.getNormalizedFrequencyData() || {};
+    const audioData = audioManager.getNormalizedFrequencyData() || {};
 
     if (smokeReady) {
-      // drawPoints(audioData);
-      for (let i = 0; i < particleContainers.length; i++) {
-        drawParticles(particleContainers[i]);
+
+
+      if (audioManager.isPlaying() && audioData.bins) {
+        for (let i = 0; i < particleContainers.length; i++) {
+          drawParticles(particleContainers[i], audioData.bins[i]);
+        }
+      } else {
+        for (let i = 0; i < particleContainers.length; i++) {
+          drawParticles(particleContainers[i]);
+        }
       }
+
 
     }
 
@@ -493,7 +448,7 @@ import * as InputActions from 'input/inputActions';
     if (activeActions.length === 0) {
       return;
     }
-    
+
     activeActions.forEach(action => {
       if (inputHandlers[action]) {
         inputHandlers[action]();
