@@ -29,16 +29,6 @@ export const config = [
     source: require('raw!line.fragment.glsl')
   },
   {
-    name: 'particleShader',
-    type: TYPE_VERTEX,
-    source: require('raw!particle.vertex.glsl')
-  },
-  {
-    name: 'particleShader',
-    type: TYPE_FRAGMENT,
-    source: require('raw!particle.fragment.glsl')
-  },
-  {
     name: 'barShader',
     type: TYPE_VERTEX,
     source: require('raw!bar.vertex.glsl')

@@ -18,6 +18,7 @@ import * as BrowserUtils from 'utils/browser';
 import Camera from 'camera/camera';
 import UIController from 'ui/uiController';
 import AudioManager from 'audio/audioManager';
+import ShaderManager from 'shaderManager.js';
 import Clock from 'three/clock';
 import GPUParticleContainer from 'particles/ParticleContainer';
 import KeyInput from 'input/keyInput';
@@ -31,22 +32,14 @@ import * as InputActions from 'input/inputActions';
 
   const camera = new Camera();
   const keyInput = new KeyInput();
-  keyInput.registerKeyAction(InputKeys.VK_W, InputActions.CAMERA_MOVE_POS_Z);
-  keyInput.registerKeyAction(InputKeys.VK_S, InputActions.CAMERA_MOVE_NEG_Z);
-
-  keyInput.registerKeyAction(InputKeys.VK_A, InputActions.CAMERA_MOVE_POS_X);
-  keyInput.registerKeyAction(InputKeys.VK_D, InputActions.CAMERA_MOVE_NEG_X);
-
-
-  keyInput.registerKeyAction(InputKeys.VK_ARROW_LEFT, InputActions.CAMERA_MOVE_NEG_YAW);
-  keyInput.registerKeyAction(InputKeys.VK_ARROW_RIGHT, InputActions.CAMERA_MOVE_POS_YAW);
-
-  keyInput.registerKeyAction(InputKeys.VK_ARROW_UP, InputActions.CAMERA_MOVE_POS_PITCH);
-  keyInput.registerKeyAction(InputKeys.VK_ARROW_DOWN, InputActions.CAMERA_MOVE_NEG_PITCH);
+  const inputHandlers = {};
 
   const clock = new Clock(true);
   const particleContainers = [];
   const MAX_PARTICLE_CONTAINERS = 8;
+
+  let perspectiveMatrix = null;
+  let canvas = null;
 
   for (let i = 0 ; i < MAX_PARTICLE_CONTAINERS; i++) {
     particleContainers[i] = new GPUParticleContainer();
@@ -122,46 +115,26 @@ import * as InputActions from 'input/inputActions';
     return gl;
   }
 
-  var stats;
+  let stats;
 
-  var bars;
-  var barBuffer;
-  var perspectiveMatrix;
-  var gl;
-  var animationUpdateTime;
+  let bars;
+  let barBuffer;
+  let gl;
 
-  const particleSystem = {
-    positions: null,
-    velocities: null,
-    alive: null,
-    ages: null,
-    lifespans: null,
-    nextType: 0
-  };
+  let smokeImage, smokeTexture;
+  let smokeReady = false;
 
-
-  var animationFrameDelay = 1000 / 60;
-
-  var particleBuffer, aliveBuffer, particleAgeBuffer, particleTypeBuffer;
-  var particleShader;
-  var particleAliveAttribute, particleColorAttribute, particleAgeAttribute, particleTypeAttribute, particlePositionAttribute;
-
-  var smokeImage, smokeTexture;
-  var smokeReady = false;
-
-  var barShader;
-  var barVerticesLocation;
+  let barShader;
+  let barVerticesLocation;
 
   const audioManager = new AudioManager();
   const uiController = new UIController(audioManager);
 
-  var frameBuffer;
-  var frameTexture;
-  var quadBuffer;
-  var quadVerticesLocation;
-  var quadShader;
-
-  var colorsBuffer;
+  let frameBuffer;
+  let frameTexture;
+  let quadBuffer;
+  let quadVerticesLocation;
+  let quadShader;
 
   function initFrameBuffer () {
     const width = gl.canvas.clientWidth;
@@ -217,7 +190,6 @@ import * as InputActions from 'input/inputActions';
 
   function initBuffers() {
     initTextures();
-    // initParticles();
     initFrameBuffer();
   }
 
@@ -337,12 +309,22 @@ import * as InputActions from 'input/inputActions';
           velocityRandomness: 0.4,
           color: COLORS[i].toValue(),
           colorRandomness: 0,
-          lifetime: 10,
+          lifetime: 6,
           sizeRandomness: 0.5
         });
       }
     }
 
+  }
+
+  function makePerspectiveMatrix() {
+    const perspectiveMatrix = mat4.create();
+    const aspect = canvas.clientWidth / canvas.clientHeight;
+    const FIELD_OF_VIEW_DEGREES = 50.0;
+    const NEAR = 0.1;
+    const FAR = 1000.0;
+    mat4.perspective(perspectiveMatrix, MathUtils.degreesToRadians(FIELD_OF_VIEW_DEGREES), aspect, NEAR, FAR);
+    return perspectiveMatrix;
   }
 
 
@@ -355,10 +337,9 @@ import * as InputActions from 'input/inputActions';
     const clockDelta = clock.getDelta() * 1;
 		tick += clockDelta;
 
-
-
-		if (tick < 0) tick = 0;
-
+		if (tick < 0) {
+      tick = 0;
+    }
 		if (clockDelta > 0) {
       updateParticles(gl, tick, clockDelta);
 		}
@@ -368,18 +349,9 @@ import * as InputActions from 'input/inputActions';
     gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    const aspect = canvas.clientWidth / canvas.clientHeight;
-    perspectiveMatrix = mat4.create();
-    const FIELD_OF_VIEW_DEGREES = 50.0;
-    const NEAR = 0.1;
-    const FAR = 1000.0;
-    mat4.perspective(perspectiveMatrix, MathUtils.degreesToRadians(FIELD_OF_VIEW_DEGREES), aspect, NEAR, FAR);
-
     const audioData = audioManager.getNormalizedFrequencyData() || {};
 
     if (smokeReady) {
-
-
       if (audioManager.isPlaying() && audioData.bins) {
         for (let i = 0; i < particleContainers.length; i++) {
           drawParticles(particleContainers[i], audioData.bins[i]);
@@ -399,7 +371,7 @@ import * as InputActions from 'input/inputActions';
 
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, frameTexture);
-    var textureLocation = gl.getUniformLocation(quadShader, "inTexture");
+    const textureLocation = gl.getUniformLocation(quadShader, "inTexture");
     gl.uniform1i(textureLocation, 0);
 
     let inVolume = 0;
@@ -426,21 +398,7 @@ import * as InputActions from 'input/inputActions';
     requestAnimationFrame(drawScene);
   }
 
-  const inputHandlers = {};
-  inputHandlers[InputActions.CAMERA_MOVE_POS_YAW] = () => camera.updateYaw(1);
-  inputHandlers[InputActions.CAMERA_MOVE_NEG_YAW] = () => camera.updateYaw(-1);
 
-  inputHandlers[InputActions.CAMERA_MOVE_POS_PITCH] = () => camera.updatePitch(1);
-  inputHandlers[InputActions.CAMERA_MOVE_NEG_PITCH] = () => camera.updatePitch(-1);
-
-  inputHandlers[InputActions.CAMERA_MOVE_POS_X] = () => camera.updateX(1);
-  inputHandlers[InputActions.CAMERA_MOVE_NEG_X] = () => camera.updateX(-1);
-
-  inputHandlers[InputActions.CAMERA_MOVE_POS_Y] = () => camera.updateY(1);
-  inputHandlers[InputActions.CAMERA_MOVE_NEG_Y] = () => camera.updateY(-1);
-
-  inputHandlers[InputActions.CAMERA_MOVE_POS_Z] = () => camera.updateZ(1);
-  inputHandlers[InputActions.CAMERA_MOVE_NEG_Z] = () => camera.updateZ(-1);
 
   function handleInput() {
     const activeActions = keyInput.getActiveActions();
@@ -457,32 +415,65 @@ import * as InputActions from 'input/inputActions';
 
   }
 
-  function onLoad () {
-
-    $(document).on("keydown", (event) => {
+  function bindKeyHandlers () {
+    const $document = $(document);
+    $document.on("keydown", (event) => {
       const key = event.keyCode;
       keyInput.setKeyActive(key);
     });
-    $(document).on("keyup", (event) => {
+    $document.on("keyup", (event) => {
       const key = event.keyCode;
       keyInput.setKeyInactive(key);
     });
+
+    keyInput.registerKeyAction(InputKeys.VK_W, InputActions.CAMERA_MOVE_POS_Z);
+    keyInput.registerKeyAction(InputKeys.VK_S, InputActions.CAMERA_MOVE_NEG_Z);
+
+    keyInput.registerKeyAction(InputKeys.VK_A, InputActions.CAMERA_MOVE_POS_X);
+    keyInput.registerKeyAction(InputKeys.VK_D, InputActions.CAMERA_MOVE_NEG_X);
+
+    keyInput.registerKeyAction(InputKeys.VK_ARROW_LEFT, InputActions.CAMERA_MOVE_NEG_YAW);
+    keyInput.registerKeyAction(InputKeys.VK_ARROW_RIGHT, InputActions.CAMERA_MOVE_POS_YAW);
+
+    keyInput.registerKeyAction(InputKeys.VK_ARROW_UP, InputActions.CAMERA_MOVE_POS_PITCH);
+    keyInput.registerKeyAction(InputKeys.VK_ARROW_DOWN, InputActions.CAMERA_MOVE_NEG_PITCH);
+
+    inputHandlers[InputActions.CAMERA_MOVE_POS_YAW] = () => camera.updateYaw(1);
+    inputHandlers[InputActions.CAMERA_MOVE_NEG_YAW] = () => camera.updateYaw(-1);
+
+    inputHandlers[InputActions.CAMERA_MOVE_POS_PITCH] = () => camera.updatePitch(1);
+    inputHandlers[InputActions.CAMERA_MOVE_NEG_PITCH] = () => camera.updatePitch(-1);
+
+    inputHandlers[InputActions.CAMERA_MOVE_POS_X] = () => camera.updateX(1);
+    inputHandlers[InputActions.CAMERA_MOVE_NEG_X] = () => camera.updateX(-1);
+
+    inputHandlers[InputActions.CAMERA_MOVE_POS_Y] = () => camera.updateY(1);
+    inputHandlers[InputActions.CAMERA_MOVE_NEG_Y] = () => camera.updateY(-1);
+
+    inputHandlers[InputActions.CAMERA_MOVE_POS_Z] = () => camera.updateZ(1);
+    inputHandlers[InputActions.CAMERA_MOVE_NEG_Z] = () => camera.updateZ(-1);
+  }
+
+  function setupStats() {
     stats = new Stats();
     stats.setMode(0); // 0: fps, 1: ms, 2: mb
-
     // align top-left
     stats.domElement.style.position = 'absolute';
     stats.domElement.style.right = '0px';
     stats.domElement.style.top = '0px';
 
     document.body.appendChild( stats.domElement );
+  }
 
-    const ShaderManager = require('shaderManager.js');
+  function onLoad () {
+    canvas = document.getElementById("canvas");
+    perspectiveMatrix = makePerspectiveMatrix();
+    setupStats();
+    bindKeyHandlers();
 
     const shaderManager = new ShaderManager();
     uiController.bind();
 
-    var canvas = document.getElementById("canvas");
     gl = initWebGL(canvas);
     shaderManager.compileShaders(gl);
     initBuffers();
@@ -512,13 +503,6 @@ import * as InputActions from 'input/inputActions';
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
     // gl.blendFunc( gl.SRC_ALPHA, gl.ONE_MINUS_DST_ALPHA );
 
-    // gl.useProgram(particleShader);
-    // particlePositionAttribute = gl.getAttribLocation(particleShader, "inCoord");
-    // particleAliveAttribute = gl.getAttribLocation(particleShader, "inAlive");
-    // particleAgeAttribute = gl.getAttribLocation(particleShader, "inAge");
-    // particleTypeAttribute = gl.getAttribLocation(particleShader, "inType");
-
-
     gl.useProgram(gpuParticleShader);
     particlePositionsStartTimeAttribute = gl.getAttribLocation(gpuParticleShader, "particlePositionsStartTime");
     particleVelColSizeLifeAttribute = gl.getAttribLocation(gpuParticleShader, "particleVelColSizeLife");
@@ -539,8 +523,8 @@ import * as InputActions from 'input/inputActions';
   }
 
   function resize() {
-    var width = gl.canvas.clientWidth;
-    var height = gl.canvas.clientHeight;
+    const width = gl.canvas.clientWidth;
+    const height = gl.canvas.clientHeight;
     if (gl.canvas.width != width ||
         gl.canvas.height != height) {
 
@@ -549,6 +533,8 @@ import * as InputActions from 'input/inputActions';
        gl.canvas.height = height;
        gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
     }
+
+    perspectiveMatrix = makePerspectiveMatrix();
   }
 
 
