@@ -91,7 +91,7 @@ void main() {
 
   lifeLeft = 1. - (timeElapsed / particleVelColSizeLife.w);
 
-  gl_PointSize = ( uScale * particleVelColSizeLife.z ) * lifeLeft * 8.;
+  gl_PointSize = ( uScale * particleVelColSizeLife.z ) * lifeLeft;
 
   velocity.x = ( velocity.x - .5 ) * 3.;
   velocity.y = ( velocity.y - .5 ) * 3.;

@@ -1,28 +1,57 @@
 /**
-* Copyright 2015 Nick Stanish
+* Copyright 2015-2016 Nick Stanish
 *
 */
 
 require('less/styles.less');
 window.VISUAL_AUDIO = {
-  VERSION: VERSION
+  VERSION: window.VERSION
 };
 
+import polyfill from 'polyfills';
+import glMatrix from 'gl-matrix';
+
+glMatrix.glMatrix.setMatrixArrayType(Float32Array);
+const {mat4, vec4} = glMatrix;
 import * as MathUtils from 'utils/math';
 import * as BrowserUtils from 'utils/browser';
+import Camera from 'camera/camera';
 import UIController from 'ui/uiController';
 import AudioManager from 'audio/audioManager';
 import Clock from 'three/clock';
 import GPUParticleContainer from 'particles/ParticleContainer';
+import KeyInput from 'input/keyInput';
+import { COLORS } from 'data/colors';
+
+import * as InputKeys from 'input/inputKeys';
+import * as InputActions from 'input/inputActions';
+
 
 (function () {
-  const polyfill = require("polyfills");
-  const glMatrix = require('gl-matrix');
-  glMatrix.glMatrix.setMatrixArrayType(Float32Array);
-  const {mat4, vec4} = glMatrix;
+
+  const camera = new Camera();
+  const keyInput = new KeyInput();
+  keyInput.registerKeyAction(InputKeys.VK_W, InputActions.CAMERA_MOVE_POS_Z);
+  keyInput.registerKeyAction(InputKeys.VK_S, InputActions.CAMERA_MOVE_NEG_Z);
+
+  keyInput.registerKeyAction(InputKeys.VK_A, InputActions.CAMERA_MOVE_POS_X);
+  keyInput.registerKeyAction(InputKeys.VK_D, InputActions.CAMERA_MOVE_NEG_X);
+
+
+  keyInput.registerKeyAction(InputKeys.VK_ARROW_LEFT, InputActions.CAMERA_MOVE_NEG_YAW);
+  keyInput.registerKeyAction(InputKeys.VK_ARROW_RIGHT, InputActions.CAMERA_MOVE_POS_YAW);
+
+  keyInput.registerKeyAction(InputKeys.VK_ARROW_UP, InputActions.CAMERA_MOVE_POS_PITCH);
+  keyInput.registerKeyAction(InputKeys.VK_ARROW_DOWN, InputActions.CAMERA_MOVE_NEG_PITCH);
 
   const clock = new Clock(true);
-  const particleContainer = new GPUParticleContainer();
+  const particleContainers = [];
+  const MAX_PARTICLE_CONTAINERS = 8;
+
+  for (let i = 0 ; i < MAX_PARTICLE_CONTAINERS; i++) {
+    particleContainers[i] = new GPUParticleContainer();
+  }
+
   let tick = 0;
 
   let gpuParticleShader;
@@ -79,76 +108,21 @@ import GPUParticleContainer from 'particles/ParticleContainer';
   // document.addEventListener("resize", onResize);
 
   function initWebGL(canvas) {
-    var gl;
+    let gl = null;
 
     try {
       // Try to grab the standard context. If it fails, fallback to experimental.
       gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
     }
-    catch(e) {}
-
-    // If we don't have a GL context, give up now
-    if (!gl) {
+    catch (e) {
+      console.error(e);
       alert("Unable to initialize WebGL. Your browser may not support it.");
-      gl = null;
     }
     window.gl = gl;
     return gl;
   }
 
   var stats;
-
-  const colors = [
-    {
-     name: "red",
-     r: 244,
-     g: 67,
-     b: 54
-    },
-    {
-     name: "purple",
-     r: 156,
-     g: 39,
-     b: 176
-    },
-    {
-     name: "blue",
-     r: 33,
-     g: 150,
-     b: 243
-    },
-    {
-     name: "green",
-     r: 76,
-     g: 175,
-     b: 80
-    },
-    {
-     name: "yellow",
-     r: 255,
-     g: 235,
-     b: 59
-    },
-    {
-     name: "orange",
-     r: 255,
-     g: 152,
-     b: 0
-    },
-    {
-     name: "cyan",
-     r: 0,
-     g: 172,
-     b: 193
-    },
-    {
-     name: "pink",
-     r: 233,
-     g: 30,
-     b: 99
-    }
-
-  ]
 
   var bars;
   var barBuffer;
@@ -166,24 +140,6 @@ import GPUParticleContainer from 'particles/ParticleContainer';
   };
 
 
-  const emitters = [{
-    rate: options.emissionRate, // number to emit per time slice
-    lastEmit: null, // used with rate to determine how many to emit
-    lifespan: options.particleLifespan, // lifespan of particle
-    direction: {
-      x: [-0.01, 0.01],
-      y: [-0.01, 0.01],
-      z: [-0.01, 0.01]
-    },
-    position: {
-      x: 0,
-      y: 0,
-      z: 0
-    }
-  }];
-
-  const PARTICLE_ALIVE = 1;
-  const PARTICLE_DEAD = 0;
   var animationFrameDelay = 1000 / 60;
 
   var particleBuffer, aliveBuffer, particleAgeBuffer, particleTypeBuffer;
@@ -257,155 +213,11 @@ import GPUParticleContainer from 'particles/ParticleContainer';
     };
     smokeImage.src = "public/images/star.png";
   }
-  function moveParticles () {
-
-    var emitter = emitters[0];
-    var emitted = 0;
-    var rate = emitter.rate;
-    var velocityMultiplier = options.velocityMultiplier;
-
-    var particlesLength = particleSystem.alive.length;
-
-    const acceleration = {
-      x: 0,
-      y: -0.000015,
-      z: 0
-    };
-
-    for (let i = 0; i < particlesLength; i++) {
-      const j = i * 3;
-
-      if (particleSystem.alive[i] === PARTICLE_DEAD) {
-        // spawn particle
-        if (emitted < rate) {
-          const position = emitter.position;
-          const velocity = {
-            x: MathUtils.getRandom(emitter.direction.x[0], emitter.direction.x[1]),
-            y: MathUtils.getRandom(emitter.direction.y[0], emitter.direction.y[1]),
-            z: MathUtils.getRandom(emitter.direction.z[0], emitter.direction.z[1])
-          };
-
-          if (velocityMultiplier !== 1) {
-            velocity.x *= velocityMultiplier;
-            velocity.y *= velocityMultiplier;
-            velocity.z *= velocityMultiplier;
-          }
-
-          particleSystem.positions[j] = position.x;
-          particleSystem.positions[j+1] = position.y;
-          particleSystem.positions[j+2] = position.z;
-
-          particleSystem.velocities[j] = velocity.x;
-          particleSystem.velocities[j+1] = velocity.y;
-          particleSystem.velocities[j+2] = velocity.z;
-
-          particleSystem.alive[i] = PARTICLE_ALIVE;
-          particleSystem.ages[i] = 0;
-          particleSystem.lifespans[i] = emitter.lifespan;
-          particleSystem.type[i] = particleSystem.nextType;
-
-          particleSystem.nextType = (particleSystem.nextType + 1) % 8;
-          emitted++;
-
-        }
-
-      } else {
-        // update particle
-        if (options.useAcceleration) {
-          particleSystem.positions[j] += particleSystem.velocities[j] + acceleration.x * particleSystem.ages[i];
-          particleSystem.positions[j+1] += particleSystem.velocities[j+1] + acceleration.y * particleSystem.ages[i];
-          particleSystem.positions[j+2] += particleSystem.velocities[j+2];
-        } else {
-          particleSystem.positions[j] += particleSystem.velocities[j];
-          particleSystem.positions[j+1] += particleSystem.velocities[j+1];
-          particleSystem.positions[j+2] += particleSystem.velocities[j+2];
-        }
-
-
-        if (particleSystem.ages[i] > particleSystem.lifespans[i]) {
-          particleSystem.alive[i] = PARTICLE_DEAD;
-        }
-        particleSystem.ages[i]++;
-      }
-
-    }
-    gl.bindBuffer(gl.ARRAY_BUFFER, particleBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, particleSystem.positions, gl.DYNAMIC_DRAW);
-    gl.bindBuffer(gl.ARRAY_BUFFER, aliveBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, particleSystem.alive, gl.STATIC_DRAW);
-    gl.bindBuffer(gl.ARRAY_BUFFER, particleAgeBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, particleSystem.ages, gl.STATIC_DRAW);
-    gl.bindBuffer(gl.ARRAY_BUFFER, particleTypeBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, particleSystem.type, gl.STATIC_DRAW);
-  }
-
-  function initParticles(){
-    const max = options.maxParticles;
-    particleSystem.positions = new Float32Array(max * 3);
-    particleSystem.velocities = new Float32Array(max * 3);
-    particleSystem.type = new Float32Array(max);
-    particleSystem.alive = new Float32Array(max);
-    particleSystem.ages = new Float32Array(max);
-    particleSystem.lifespans = new Float32Array(max);
-
-    colorsBuffer = new Float32Array(colors.length * 3);
-    for (var i = 0; i < colors.length; i++){
-      colorsBuffer[i * 3] = (colors[i].r / 255);
-      colorsBuffer[i * 3 + 1] = (colors[i].g / 255);
-      colorsBuffer[i * 3 + 2] =(colors[i].b / 255);
-    }
-
-
-    for (var i = 0, j = 0; i < max; i++, j +=3) {
-      var position = {
-        x: 0,
-        y: 0,
-        z: 0
-      };
-      var velocity = {
-        x: 0,
-        y: 0,
-        z: 0
-      };
-
-
-      const alive = PARTICLE_DEAD;
-
-      particleSystem.positions[j] = position.x;
-      particleSystem.positions[j+1] = position.y;
-      particleSystem.positions[j+2] = position.z;
-
-      particleSystem.velocities[j] = velocity.x;
-      particleSystem.velocities[j+1] = velocity.y;
-      particleSystem.velocities[j+2] = velocity.z;
-
-      particleSystem.type[j] = 0;
-      particleSystem.alive[j] = alive;
-
-    }
-
-    particleBuffer = gl.createBuffer();
-    aliveBuffer = gl.createBuffer();
-    particleAgeBuffer = gl.createBuffer();
-    particleTypeBuffer = gl.createBuffer();
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, particleTypeBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, particleSystem.type, gl.STATIC_DRAW);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, particleBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, particleSystem.positions, gl.DYNAMIC_DRAW);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, aliveBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, particleSystem.alive, gl.STATIC_DRAW);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, particleAgeBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, particleSystem.ages, gl.STATIC_DRAW);
-  }
 
 
   function initBuffers() {
     initTextures();
-    initParticles();
+    // initParticles();
     initFrameBuffer();
   }
 
@@ -462,31 +274,27 @@ import GPUParticleContainer from 'particles/ParticleContainer';
     gl.disableVertexAttribArray(particlePositionAttribute);
   }
 
-  function animate() {
-    moveParticles();
-  }
-
   function drawBars() {
     bars = [];
 
-    var bufferLength = audioManager.getFrequencyBinCount();
-    var widthScale = 8.0;
-    var barWidth = widthScale / bufferLength;
-    var barPadding = barWidth * 0.2;
+    const bufferLength = audioManager.getFrequencyBinCount();
+    const widthScale = 8.0;
+    const barWidth = widthScale / bufferLength;
+    const barPadding = barWidth * 0.2;
 
-    var data = audioManager.getFrequencyData();
-    var halfWidthScale = (widthScale / 2);
+    const data = audioManager.getFrequencyData();
+    const halfWidthScale = (widthScale / 2);
 
     if (data && data.length > 0){
-      for(var i = 0; i < data.length; i++) {
-        var datum = data[i] / 255;
+      for (let i = 0; i < data.length; i++) {
+        const datum = data[i] / 255;
 
-        var height = datum; // [0, 1]
-        var bottom = 0;
-        var x1 = (i * (barWidth)) - halfWidthScale;
-        var x2 = x1 + (barWidth - barPadding);
-        var z = 1;
-        var bar = [
+        const height = datum; // [0, 1]
+        const bottom = 0;
+        const x1 = (i * (barWidth)) - halfWidthScale;
+        const x2 = x1 + (barWidth - barPadding);
+        const z = 1;
+        const bar = [
           x1, height, z,
           x1, bottom, z,
           x2, bottom, z,
@@ -503,36 +311,33 @@ import GPUParticleContainer from 'particles/ParticleContainer';
       gl.bindBuffer(gl.ARRAY_BUFFER, barBuffer);
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(bars), gl.STATIC_DRAW);
 
-    (function () {
-        gl.useProgram(barShader);
-        var pUniform = gl.getUniformLocation(barShader, "uPMatrix");
-        gl.uniformMatrix4fv(pUniform, false, perspectiveMatrix);
+      gl.useProgram(barShader);
+      const pUniform = gl.getUniformLocation(barShader, "uPMatrix");
+      gl.uniformMatrix4fv(pUniform, false, perspectiveMatrix);
 
-        var mvUniform = gl.getUniformLocation(barShader, "uMVMatrix");
-        gl.uniformMatrix4fv(mvUniform, false, camera.getModelViewMatrix());
+      const mvUniform = gl.getUniformLocation(barShader, "uMVMatrix");
+      gl.uniformMatrix4fv(mvUniform, false, camera.getModelViewMatrix());
 
-        var mUniform = gl.getUniformLocation(barShader, "uMMatrix");
-        var modelMatrix = mat4.create();
+      const mUniform = gl.getUniformLocation(barShader, "uMMatrix");
+      const modelMatrix = mat4.create();
 
-        var vector = vec4.fromValues(0, -4, 0, 0);
-        mat4.translate(modelMatrix, modelMatrix, vector);
+      const vector = vec4.fromValues(0, -4, 0, 0);
+      mat4.translate(modelMatrix, modelMatrix, vector);
 
+      // var m = Matrix.Translation($V([v[0], v[1], v[2]])).ensure4x4();
+      // modelMatrix = modelMatrix.x(m);
+      gl.uniformMatrix4fv(mUniform, false, modelMatrix);
 
-        // var m = Matrix.Translation($V([v[0], v[1], v[2]])).ensure4x4();
-        // modelMatrix = modelMatrix.x(m);
-        gl.uniformMatrix4fv(mUniform, false, modelMatrix);
+      gl.bindBuffer(gl.ARRAY_BUFFER, barBuffer);
+      gl.enableVertexAttribArray(barVerticesLocation);
+      gl.vertexAttribPointer(barVerticesLocation, 3, gl.FLOAT, false, 0, 0);
 
-        gl.bindBuffer(gl.ARRAY_BUFFER, barBuffer);
-        gl.enableVertexAttribArray(barVerticesLocation);
-        gl.vertexAttribPointer(barVerticesLocation, 3, gl.FLOAT, false, 0, 0);
+      gl.drawArrays(gl.TRIANGLES, 0, bars.length / 3.0);
 
-        gl.drawArrays(gl.TRIANGLES, 0, bars.length / 3.0);
-
-        gl.disableVertexAttribArray(barVerticesLocation);
-      })()
+      gl.disableVertexAttribArray(barVerticesLocation);
   }
 
-  function drawParticles() {
+  function drawParticles(particleContainer) {
     // uniform sampler2D tNoise;
 
 
@@ -550,7 +355,7 @@ import GPUParticleContainer from 'particles/ParticleContainer';
     gl.uniform1f(uTimeUniform, particleContainer.time);
 
     const uScaleUniform = gl.getUniformLocation(gpuParticleShader, "uScale");
-    gl.uniform1f(uScaleUniform, 1);
+    gl.uniform1f(uScaleUniform, 40);
 
 
     gl.activeTexture(gl.TEXTURE0);
@@ -571,7 +376,27 @@ import GPUParticleContainer from 'particles/ParticleContainer';
     gl.disableVertexAttribArray(particleVelColSizeLifeAttribute);
   }
 
+
+  function updateParticles(gl, tick, clockDelta) {
+    const spawnRate = 30;
+    const MAX_SPAWN = 200;
+    for (let i = 0; i < particleContainers.length; i++) {
+      const particleContainer = particleContainers[i];
+      particleContainer.update(tick, gl);
+      for (let j = 0; j < spawnRate * clockDelta && j < MAX_SPAWN; j++) {
+        particleContainer.spawnParticle({
+          velocityRandomness: 1,
+          color: COLORS[i].toValue(),
+          colorRandomness: 0
+        });
+      }
+    }
+
+  }
+
+
   function drawScene() {
+    handleInput();
     resize();
     stats.begin();
 
@@ -582,18 +407,13 @@ import GPUParticleContainer from 'particles/ParticleContainer';
 
     const clockDelta = clock.getDelta() * 1;
 		tick += clockDelta;
-    const spawnRate = 50;
+
 
 
 		if (tick < 0) tick = 0;
 
 		if (clockDelta > 0) {
-      particleContainer.update(tick, gl);
-			for (let i = 0; i < spawnRate * clockDelta; i++) {
-				particleContainer.spawnParticle({
-          velocityRandomness: 1
-        });
-			}
+      updateParticles(gl, tick, clockDelta);
 		}
 
 
@@ -612,19 +432,10 @@ import GPUParticleContainer from 'particles/ParticleContainer';
 
     if (smokeReady) {
       // drawPoints(audioData);
-      drawParticles();
-
-
-      const currentTime = (new Date).getTime();
-      if (animationUpdateTime) {
-        const delta = currentTime - animationUpdateTime;
-        if (delta > animationFrameDelay) {
-          animationUpdateTime = currentTime;
-          // animate();
-        }
-      } else {
-        animationUpdateTime = currentTime;
+      for (let i = 0; i < particleContainers.length; i++) {
+        drawParticles(particleContainers[i]);
       }
+
     }
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -659,103 +470,48 @@ import GPUParticleContainer from 'particles/ParticleContainer';
     stats.end();
     requestAnimationFrame(drawScene);
   }
-  function keyHandler (event) {
-    var key = event.keyCode;
-    var keyMap = {
-      '37': {
-        id: "left_arrow",
-        action: "minus_yaw"
-      },
-      '38': {
-        id: "up_arrow",
-        action: "plus_pitch"
-      },
-      '39': {
-        id: "right_arrow",
-        action: "plus_yaw"
-      },
-      '40': {
-        id: "down_arrow",
-        action: "minus_pitch"
-      },
-      '87': {
-        id: "W",
-        action: "move_forward"
-      },
-      '65': {
-        id: "A",
-        action: "move_left"
-      },
-      '83': {
-        id: "S",
-        action: "move_backward"
-      },
-      '68': {
-        id: "D",
-        action: "move_right"
-      }
-    };
 
-    var pitch_delta = 0.1;
-    var yaw_delta = 0.1;
-    var movement_delta = [0.2, 0.5, 0.5];
+  const inputHandlers = {};
+  inputHandlers[InputActions.CAMERA_MOVE_POS_YAW] = () => camera.updateYaw(1);
+  inputHandlers[InputActions.CAMERA_MOVE_NEG_YAW] = () => camera.updateYaw(-1);
 
-    if (!keyMap[key]) {
+  inputHandlers[InputActions.CAMERA_MOVE_POS_PITCH] = () => camera.updatePitch(1);
+  inputHandlers[InputActions.CAMERA_MOVE_NEG_PITCH] = () => camera.updatePitch(-1);
+
+  inputHandlers[InputActions.CAMERA_MOVE_POS_X] = () => camera.updateX(1);
+  inputHandlers[InputActions.CAMERA_MOVE_NEG_X] = () => camera.updateX(-1);
+
+  inputHandlers[InputActions.CAMERA_MOVE_POS_Y] = () => camera.updateY(1);
+  inputHandlers[InputActions.CAMERA_MOVE_NEG_Y] = () => camera.updateY(-1);
+
+  inputHandlers[InputActions.CAMERA_MOVE_POS_Z] = () => camera.updateZ(1);
+  inputHandlers[InputActions.CAMERA_MOVE_NEG_Z] = () => camera.updateZ(-1);
+
+  function handleInput() {
+    const activeActions = keyInput.getActiveActions();
+
+    if (activeActions.length === 0) {
       return;
     }
-
-    switch (keyMap[key].action) {
-      case "minus_pitch":
-        camera.pitch -= pitch_delta;
-      break;
-      case "plus_pitch":
-        camera.pitch += pitch_delta;
-      break;
-      case "plus_yaw":
-        camera.yaw += yaw_delta;
-      break;
-      case "minus_yaw":
-        camera.yaw -= yaw_delta;
-      break;
-      case "move_forward":
-        camera.position[2] += movement_delta[2];
-      break;
-      case "move_backward":
-        camera.position[2] -= movement_delta[2];
-      break;
-      case "move_left":
-        camera.position[0] += movement_delta[0];
-      break;
-      case "move_right":
-        camera.position[0] -= movement_delta[0];
-      break;
-
-    }
+    
+    activeActions.forEach(action => {
+      if (inputHandlers[action]) {
+        inputHandlers[action]();
+      }
+    })
 
   }
-
-  function Camera () {
-    this.position = [0, 0, -10];
-    this.pitch = 0;
-    this.yaw = 0;
-
-  }
-
-
-  Camera.prototype.getModelViewMatrix = function () {
-    let result = mat4.create();
-    mat4.rotateX(result, result, -this.pitch);
-    mat4.rotateY(result, result, this.yaw);
-    mat4.translate(result, result, this.position);
-    return result;
-  }
-
-  let camera;
-
 
   function onLoad () {
 
-    $(document).on("keydown", keyHandler);
+    $(document).on("keydown", (event) => {
+      const key = event.keyCode;
+      keyInput.setKeyActive(key);
+    });
+    $(document).on("keyup", (event) => {
+      const key = event.keyCode;
+      keyInput.setKeyInactive(key);
+    });
     stats = new Stats();
     stats.setMode(0); // 0: fps, 1: ms, 2: mb
 
@@ -771,19 +527,13 @@ import GPUParticleContainer from 'particles/ParticleContainer';
     const shaderManager = new ShaderManager();
     uiController.bind();
 
-    camera = window.camera = new Camera();
-
-
     var canvas = document.getElementById("canvas");
     gl = initWebGL(canvas);
     shaderManager.compileShaders(gl);
     initBuffers();
-    particleContainer.init(gl);
-
-    particleShader = gl.createProgram();
-    gl.attachShader(particleShader, shaderManager.vertex['particleShader']);
-    gl.attachShader(particleShader, shaderManager.fragment['particleShader']);
-    gl.linkProgram(particleShader);
+    for (let i = 0; i < particleContainers.length; i++) {
+      particleContainers[i].init(gl);
+    }
 
     gpuParticleShader = gl.createProgram();
     gl.attachShader(gpuParticleShader, shaderManager.vertex['gpuParticleShader']);
@@ -807,11 +557,11 @@ import GPUParticleContainer from 'particles/ParticleContainer';
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
     // gl.blendFunc( gl.SRC_ALPHA, gl.ONE_MINUS_DST_ALPHA );
 
-    gl.useProgram(particleShader);
-    particlePositionAttribute = gl.getAttribLocation(particleShader, "inCoord");
-    particleAliveAttribute = gl.getAttribLocation(particleShader, "inAlive");
-    particleAgeAttribute = gl.getAttribLocation(particleShader, "inAge");
-    particleTypeAttribute = gl.getAttribLocation(particleShader, "inType");
+    // gl.useProgram(particleShader);
+    // particlePositionAttribute = gl.getAttribLocation(particleShader, "inCoord");
+    // particleAliveAttribute = gl.getAttribLocation(particleShader, "inAlive");
+    // particleAgeAttribute = gl.getAttribLocation(particleShader, "inAge");
+    // particleTypeAttribute = gl.getAttribLocation(particleShader, "inType");
 
 
     gl.useProgram(gpuParticleShader);
@@ -825,15 +575,12 @@ import GPUParticleContainer from 'particles/ParticleContainer';
     quadVerticesLocation = gl.getAttribLocation(quadShader, "inCoord");
 
 
-    // Only continue if WebGL is available and working
     gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
-    if (gl) {
-      gl.clearColor(0.0, 0.0, 0.0, 1.0);
-      gl.disable(gl.DEPTH_TEST);
-      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    gl.disable(gl.DEPTH_TEST);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-      requestAnimationFrame(drawScene);
-    }
+    requestAnimationFrame(drawScene);
   }
 
   function resize() {

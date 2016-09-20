@@ -8,7 +8,8 @@
     "Promise": true,
     "Float32Array": true,
     "Uint8Array": true,
-    "VERSION": true
+    "VERSION": true,
+    "Set": true
   },
   "parser": "babel-eslint",
   "parserOptions": {

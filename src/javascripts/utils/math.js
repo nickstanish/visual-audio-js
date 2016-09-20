@@ -39,6 +39,10 @@ export function rgbToHex(r, g, b) {
   return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
 }
 
+export function rgbToValue(r, g, b) {
+  return (r << 16) + (g << 8) + b;
+}
+
 export function hexToRgb(hex) {
   let r = hex >> 16;
   let g = (hex & 0x00FF00) >> 8;
