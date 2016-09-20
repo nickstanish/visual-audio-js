@@ -13,7 +13,7 @@ export const AUDIO_STATE = {
   PAUSED: "PAUSED"
 };
 
-const DEFAULT_SMOOTHING = 0.5; // 0.85
+const DEFAULT_SMOOTHING = 0.85;
 
 class AudioManager {
   constructor() {
@@ -133,9 +133,12 @@ class AudioManager {
   }
 
   stop () {
-    if (this.currentMediaSource && this.currentMediaSource.getAudioNode()) {
-      if (this.currentMediaSource.getAudioNode().mediaStream) {
-        const mediaStream = this.currentMediaSource.getAudioNode().mediaStream;
+    const { currentMediaSource } = this;
+    if (currentMediaSource && currentMediaSource.getAudioNode()) {
+      const audioNode = currentMediaSource.getAudioNode();
+
+      if (audioNode.mediaStream) {
+        const mediaStream = audioNode.mediaStream;
         if (mediaStream.getAudioTracks()) {
           for (let i = 0; i < mediaStream.getAudioTracks().length; i++){
             if (mediaStream.getAudioTracks()[i].stop) {
@@ -144,8 +147,11 @@ class AudioManager {
           }
         }
       } else {
-        this.currentMediaSource.getAudioNode().stop();
+        if (audioNode.stop) {
+          audioNode.stop();
+        }
       }
+      audioNode.disconnect();
     }
     this.currentMediaSource = null;
     this.mediaQueue.clear();
