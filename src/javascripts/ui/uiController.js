@@ -1,6 +1,7 @@
 /* globals $ */
 import FileSource from 'audio/source/fileSource';
 import MicSource from 'audio/source/micSource';
+import SoundCloudSource from 'audio/source/soundCloudSource';
 
 import { AUDIO_STATE } from 'audio/audioManager';
 import { SOURCE_TYPES } from 'audio/source/mediaSource';
@@ -10,6 +11,12 @@ const audioChooserID = "#audio-chooser";
 const fileChooserID = "#file-chooser";
 const voiceButtonID = "#voice-chooser";
 const mediaButtonID = ".media-btn";
+const urlInputId = "#urlSource";
+const urlFormId = "#urlSourceForm";
+
+
+const SOUNDCLOUD = /soundcloud.com/;
+
 
 class UIController {
   constructor(audioManager) {
@@ -25,15 +32,58 @@ class UIController {
     const $playButton = $("#media-controls [data-control='play']");
     const $pauseButton = $("#media-controls [data-control='pause']");
     const $stopButton = $("#media-controls [data-control='stop']");
+    const $nextButton = $("#media-controls [data-control='next']");
+    const $urlInput = $(urlInputId);
+    const $urlForm = $(urlFormId);
 
     $fileChooser.on("change", (event) => { this.onFileChosen(event) });
     $voiceChooser.on('click', (event) => { this.onVoiceChosen(event) });
     $playButton.on("click", (event) => { this.onPlayClicked(event) });
     $pauseButton.on("click", (event) => { this.onPauseClicked(event) });
     $stopButton.on("click", (event) => { this.onStopClicked(event) });
+    $nextButton.on("click", (event) => { this.onNextClicked(event) });
+    $urlInput.on("keyup, keydown", (event) => {
+      event.stopPropagation();
+    });
+    $urlInput.on("input", (event) => {
+      event.stopPropagation();
+      this.matchUrlSources($urlInput.val());
+      this.updateUrlHasText();
+    });
+    $urlInput.on("blur", (event) => {
+      this.updateUrlHasText();
+    });
+
+    $urlForm.on("submit", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this.onUrlInputUpdated($urlInput.val());
+      $urlInput.blur();
+    });
+
+
 
     $("body").on("click", "#media-queue [data-queue-index].close", (event) => this.onRemoveQueueItem(event))
 
+  }
+
+  loadPredefinedUrl (url) {
+    this.onUrlInputUpdated(url);
+  }
+
+  updateUrlHasText() {
+    const $urlInput = $(urlInputId);
+    const value = $urlInput.val();
+    if (value && value.trim()) {
+      $urlInput.addClass('__hasText');
+    } else {
+      $urlInput.removeClass('__hasText');
+    }
+  }
+
+  matchUrlSources(value) {
+    const activeClass = 'active';
+    $('.url-icons i.fa-soundcloud').toggleClass(activeClass, SOUNDCLOUD.test(value));
   }
 
   onAudioStateChange(previousState, newState) {
@@ -71,7 +121,7 @@ class UIController {
   }
 
   displayCurrentSong() {
-    const sourceInfo = this.audioManager.getCurrentSourceInfo();
+    const sourceInfo = this.audioManager.getCurrentSourceInfo() || {};
     this.setNowPlaying(sourceInfo.label);
   }
 
@@ -84,8 +134,8 @@ class UIController {
     source.onLoaded(() => {
       console.log("SUCCESS");
       this.audioManager.addMediaSource(source);
-    }, () => {
-      console.log("ERROR");
+    }, (error) => {
+      console.error("ERROR", error);
     });
   }
 
@@ -126,6 +176,10 @@ class UIController {
     this.audioManager.stop();
   }
 
+  onNextClicked (event) {
+    this.audioManager.playNext();
+  }
+
   setNowPlaying(text) {
     $("#now-playing").text(text);
   }
@@ -162,6 +216,8 @@ class UIController {
   setMicControls () {
     const $voiceButton = $(voiceButtonID);
     const $fileChooser = $(fileChooserID);
+    const $urlInput = $(urlInputId);
+    $urlInput.attr("disabled", "disabled");
     $fileChooser.find("input, .media-btn").attr("disabled", "disabled");
     $voiceButton.addClass("active");
   }
@@ -179,6 +235,8 @@ class UIController {
   resetMicControls () {
     const $voiceButton = $(voiceButtonID);
     const $fileChooser = $(fileChooserID);
+    const $urlInput = $(urlInputId);
+    $urlInput.removeAttr("disabled");
     $fileChooser.find(`input, ${mediaButtonID}`).removeAttr("disabled");
     $voiceButton.removeClass("active");
   }
@@ -202,6 +260,23 @@ class UIController {
     const list = $('<ul></ul>').append(children);
     $mediaQueue.empty().append(list);
 
+  }
+
+  onUrlInputUpdated(url) {
+    const $urlInput = $(urlInputId);
+    $urlInput.val('');
+    if (!url || !url.trim()) {
+      return;
+    }
+    const urlToTry = url.trim();
+    let source = null;
+    const audioContext = this.audioManager.getAudioContext();
+    if (SOUNDCLOUD.test(urlToTry)) {
+      source = new SoundCloudSource(audioContext, urlToTry);
+    }
+    if (source) {
+      this.addSource(source);
+    }
   }
 }
 

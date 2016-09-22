@@ -66,6 +66,7 @@ import * as InputActions from 'input/inputActions';
   }
 
   const params = BrowserUtils.getQueryParams();
+  const predefinedMedia = params.media;
   try {
     if (params.max && parseInt(params.max) && parseInt(params.max) > 0){
       options.maxParticles = parseInt(params.max);
@@ -327,8 +328,18 @@ import * as InputActions from 'input/inputActions';
     return perspectiveMatrix;
   }
 
+  function onDoneLoading() {
+    uiController.loadPredefinedUrl(predefinedMedia);
+  }
 
+  let loading = true;
   function drawScene() {
+    if (loading) {
+      if (smokeReady) {
+        loading = false;
+        onDoneLoading();
+      }
+    }
     handleInput();
     resize();
     stats.begin();
@@ -350,6 +361,7 @@ import * as InputActions from 'input/inputActions';
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     const audioData = audioManager.getNormalizedFrequencyData() || {};
+
 
     if (smokeReady) {
       if (audioManager.isPlaying() && audioData.bins) {

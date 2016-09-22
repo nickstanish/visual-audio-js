@@ -92,20 +92,32 @@ class AudioManager {
     };
   }
 
+  playNext() {
+    this.stop(false);
+    this.onMediaEnded();
+  }
+
+  onMediaEnded() {
+    console.log("song ended");
+    if (this.mediaQueue.size() > 0) {
+      const nextSource = this.mediaQueue.dequeue();
+      this.notifyQueueListeners();
+      this.connectMediaSource(nextSource);
+    } else {
+      this.currentMediaSource = null;
+      this.setState(AUDIO_STATE.OFF);
+    }
+  }
+
   connectMediaSource (mediaSource) {
     this.currentMediaSource = mediaSource;
     const audioNode = this.currentMediaSource.getAudioNode();
-    audioNode.onended = () => {
-      console.log("song ended");
-      if (this.mediaQueue.size() > 0) {
-        const nextSource = this.mediaQueue.dequeue();
-        this.notifyQueueListeners
-        this.connectMediaSource(nextSource);
-      } else {
-        this.currentMediaSource = null;
-        this.setState(AUDIO_STATE.OFF);
-      }
-    };
+
+    if (mediaSource.onEnded) {
+      mediaSource.onEnded(() => this.onMediaEnded());
+    } else {
+      audioNode.onended = () => this.onMediaEnded();
+    }
 
     let destination;
     if (this.currentMediaSource.shouldConnectDestination()) {
@@ -115,6 +127,8 @@ class AudioManager {
     this.setupAudioNodes(audioNode, destination);
     if (audioNode.start) {
       audioNode.start(0);
+    } else if (mediaSource.play) {
+      mediaSource.play();
     }
 
     this.setState(AUDIO_STATE.PLAYING);
@@ -132,7 +146,7 @@ class AudioManager {
     }
   }
 
-  stop () {
+  stop (stopCompletely = true) {
     const { currentMediaSource } = this;
     if (currentMediaSource && currentMediaSource.getAudioNode()) {
       const audioNode = currentMediaSource.getAudioNode();
@@ -154,8 +168,17 @@ class AudioManager {
       audioNode.disconnect();
     }
     this.currentMediaSource = null;
+
+    if (stopCompletely) {
+      this.clearQueue();
+      this.setState(AUDIO_STATE.OFF);
+    }
+
+
+  }
+
+  clearQueue() {
     this.mediaQueue.clear();
-    this.setState(AUDIO_STATE.OFF);
   }
 
   createDefaultAnalyser (fftSize = 256, smoothing = DEFAULT_SMOOTHING) {

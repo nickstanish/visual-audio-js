@@ -86,3 +86,74 @@
   padding: 10px;
   display: inline;
 }
+
+#urlSourceForm {
+  display: inline-block;
+}
+
+input.form-input {
+  background: transparent;
+  padding: 5px;
+  padding-right: 30px;
+  background-color: transparent;
+  border-radius: 0;
+  color: @grayish;
+  border: 1px solid @grayish;
+  margin-left: 5px;
+  height: 34px;
+  width: 200px;
+  vertical-align: middle;
+  transition: width 0.1s ease-out 0s;
+
+  &:focus, &:hover {
+    color: @white;
+    border-color: @white;
+  }
+}
+
+form#urlSourceForm button[type="submit"] {
+  opacity: 0;
+  color: @grayish;
+  margin-left: -35px;
+  margin-right: 5px;
+  font-size: 22px;
+  line-height: 1;
+  vertical-align: middle;
+  background: transparent;
+  border: none;
+  transition: all 0.2s ease-out 0s;
+}
+
+#urlSource.__hasText ~button[type="submit"] {
+  color: @white;
+  opacity: 1;
+}
+
+
+#urlSource.__hasText ~ .url-icons,
+#urlSource:focus ~ .url-icons,
+#urlSource:hover ~ .url-icons,
+.url-icons:hover {
+  visibility: visible;
+  opacity: 1;
+}
+
+.url-icons {
+  visibility: hidden;
+  display: inline-block;
+  opacity: 0;
+  transition: all 0.2s ease-out 0s;
+
+  i.fa {
+    color: @grayish;
+    padding: 5px;
+    font-size: 20px;
+    vertical-align: middle;
+    opacity: 0.7;
+
+    &.active {
+      opacity: 1;
+      color: @white;
+    }
+  }
+}
