@@ -38,7 +38,6 @@ class SoundCloudSource extends MediaSource {
           this.audioNode = audioContext.createMediaElementSource(audioElement);
 
           resolve();
-          // soundCloudPlayer.play();
         });
       }),
       new Promise((resolve, reject) => {
