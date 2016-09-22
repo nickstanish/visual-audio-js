@@ -4,10 +4,11 @@
     <title>Visual Audio JS</title>
     <link href="public/css/bootstrap.min.css" rel="stylesheet">
     <link href="public/css/styles.css" rel="stylesheet">
-    <script src="public/js/jquery-2.1.4.min.js"></script>
-    <script src="public/js/bootstrap.min.js"></script>
-    <script src="public/js/stats.min.js"></script>
-    <script src="public/js/visual-audio.js"></script>
+    <link href="public/fonts/font-awesome-4.6.3/css/font-awesome.min.css" rel="stylesheet">
+    <script src="public/js/jquery-2.1.4.min.js" defer></script>
+    <script src="public/js/bootstrap.min.js" defer></script>
+    <script src="public/js/stats.min.js" defer></script>
+    <script src="public/js/visual-audio.js" defer></script>
   </head>
   <body>
     <div class="content-wrapper">
@@ -25,8 +26,15 @@
                 <div class="btn btn-default media-btn">
                   <div class="glyphicon glyphicon-folder-open"></div>
                 </div>
-                <input id="audioFile" type="file" multiple accept="audio/*"">
+                <input id="audioFile" type="file" multiple accept="audio/*">
               </label>
+              <form id="urlSourceForm">
+                <input id="urlSource" class="form-input" type="text" placeholder="Url">
+                <button type="submit"><i class="fa fa-plus-square"></i></button>
+                <div class="url-icons">
+                  <a href="https://soundcloud.com" title="SoundCloud" target="_blank"><i class="fa fa-soundcloud"></i></a>
+                </div>
+              </form>
 
             </div>
             <div id="media-player" class="off paused">
@@ -39,6 +47,9 @@
                 </div>
                 <div data-control="stop" class="btn btn-default media-btn">
                   <div class="glyphicon glyphicon-stop"></div>
+                </div>
+                <div data-control="next" class="btn btn-default media-btn">
+                  <div class="glyphicon glyphicon-step-forward"></div>
                 </div>
               </div>
               <div id="now-playing" class="user-select"></div>
