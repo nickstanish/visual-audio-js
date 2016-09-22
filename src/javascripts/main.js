@@ -340,6 +340,7 @@ import * as InputActions from 'input/inputActions';
         onDoneLoading();
       }
     }
+
     handleInput();
     resize();
     stats.begin();
@@ -356,12 +357,10 @@ import * as InputActions from 'input/inputActions';
 		}
 
 
-
     gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     const audioData = audioManager.getNormalizedFrequencyData() || {};
-
 
     if (smokeReady) {
       if (audioManager.isPlaying() && audioData.bins) {
