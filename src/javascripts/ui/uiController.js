@@ -68,7 +68,13 @@ class UIController {
   }
 
   loadPredefinedUrl (url) {
-    this.onUrlInputUpdated(url);
+    if (url && url.trim()) {
+      $('body').addClass('has-predefined-media');
+      $('#start').one('click', () => {
+        this.onUrlInputUpdated(url);
+        $('body').removeClass('has-predefined-media');
+      });
+    }
   }
 
   updateUrlHasText() {
