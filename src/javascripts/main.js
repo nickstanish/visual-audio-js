@@ -66,6 +66,7 @@ import * as InputActions from 'input/inputActions';
   }
 
   const params = BrowserUtils.getQueryParams();
+  const predefinedMedia = params.media;
   try {
     if (params.max && parseInt(params.max) && parseInt(params.max) > 0){
       options.maxParticles = parseInt(params.max);
@@ -327,8 +328,19 @@ import * as InputActions from 'input/inputActions';
     return perspectiveMatrix;
   }
 
+  function onDoneLoading() {
+    uiController.loadPredefinedUrl(predefinedMedia);
+  }
 
+  let loading = true;
   function drawScene() {
+    if (loading) {
+      if (smokeReady) {
+        loading = false;
+        onDoneLoading();
+      }
+    }
+
     handleInput();
     resize();
     stats.begin();
@@ -343,7 +355,6 @@ import * as InputActions from 'input/inputActions';
 		if (clockDelta > 0) {
       updateParticles(gl, tick, clockDelta);
 		}
-
 
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);

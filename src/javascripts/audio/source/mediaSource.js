@@ -1,6 +1,7 @@
 export const SOURCE_TYPES = {
   FILE: "FILE",
-  MIC: "MIC"
+  MIC: "MIC",
+  SOUNDCLOUD: "SOUNDCLOUD"
 };
 
 class MediaSourceError extends Error {
