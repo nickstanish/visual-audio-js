@@ -12,7 +12,7 @@ uniform float inVolume;
 
 varying vec2 coord;
 
-      
+
 void main(void) {
   // gl_FragColor = texture2D(inTexture, coord);
   vec2 center = vec2(0.5, 0.5);
