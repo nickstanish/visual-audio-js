@@ -495,8 +495,9 @@ function setupStats() {
   stats.setMode(0); // 0: fps, 1: ms, 2: mb
   // align top-left
   stats.domElement.style.position = 'absolute';
-  stats.domElement.style.right = '0px';
-  stats.domElement.style.top = '0px';
+  stats.domElement.style.right = '0';
+  stats.domElement.style.top = 'auto';
+  stats.domElement.style.bottom = '0';
 
   document.body.appendChild( stats.domElement );
 }
