@@ -25,5 +25,5 @@ void main() {
 
   vec4 tex = texture2D( tSprite, gl_PointCoord );
 
-  gl_FragColor = vec4( vColor.rgb * tex.rgb, alpha);
+  gl_FragColor = vec4( vColor.rgb * tex.rgb, alpha * tex.a);
 }
