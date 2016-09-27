@@ -62,6 +62,7 @@ float unpack(const in vec4 rgba_depth) {
 
 uniform mat4 projectionMatrix;
 uniform mat4 modelViewMatrix;
+uniform mat4 modelMatrix;
 uniform vec3 position;
 
 
@@ -113,9 +114,9 @@ void main() {
   }
 
   if (timeElapsed > 0.0) {
-    gl_Position = projectionMatrix * modelViewMatrix * vec4( newPosition, 1.0 );
+    gl_Position = projectionMatrix * modelViewMatrix * modelMatrix * vec4( newPosition, 1.0 );
   } else {
-    gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+    gl_Position = projectionMatrix * modelViewMatrix * modelMatrix * vec4( position, 1.0 );
     lifeLeft = 0.0;
     gl_PointSize = 0.0;
   }

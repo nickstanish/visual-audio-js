@@ -4,6 +4,7 @@ export const SHADER_GPU_PARTICLE_CONFIG = {
   uniforms: {
     projectionMatrix: "projectionMatrix",
     modelViewMatrix: "modelViewMatrix",
+    modelMatrix: "modelMatrix",
     position: "position",
     uTime: "uTime",
     uScale: "uScale",

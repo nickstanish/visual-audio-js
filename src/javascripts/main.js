@@ -12,7 +12,7 @@ import polyfill from 'polyfills';
 import glMatrix from 'gl-matrix';
 
 glMatrix.glMatrix.setMatrixArrayType(Float32Array);
-const {mat4, vec4} = glMatrix;
+const {mat4, vec4 } = glMatrix;
 import * as MathUtils from 'utils/math';
 import * as BrowserUtils from 'utils/browser';
 import Camera from 'camera/camera';
@@ -36,9 +36,22 @@ const inputHandlers = {};
 const clock = new Clock(true);
 const particleContainers = [];
 const MAX_PARTICLE_CONTAINERS = 8;
+const mousePosition = {
+  x: 0,
+  y: 0
+};
+
+const canvasDimensions = {
+  top: 0,
+  left: 0,
+  width: 0,
+  height: 0
+};
 
 let perspectiveMatrix = null;
 let canvas = null;
+
+const particlesModelMatrix = mat4.create();
 
 for (let i = 0 ; i < MAX_PARTICLE_CONTAINERS; i++) {
   particleContainers[i] = new GPUParticleContainer();
@@ -135,6 +148,7 @@ function initQuadBuffer() {
 }
 
 function initFrameBuffer () {
+  storeCanvasDimensions(gl.canvas);
   const width = gl.canvas.clientWidth;
   const height = gl.canvas.clientHeight;
 
@@ -173,7 +187,7 @@ function initTextures() {
 
     smokeReady = true;
   };
-  smokeImage.src = "public/images/star.png";
+  smokeImage.src = "public/images/alpha-star.png";
 }
 
 
@@ -231,8 +245,6 @@ function drawBars() {
     const vector = vec4.fromValues(0, -4, 0, 0);
     mat4.translate(modelMatrix, modelMatrix, vector);
 
-    // var m = Matrix.Translation($V([v[0], v[1], v[2]])).ensure4x4();
-    // modelMatrix = modelMatrix.x(m);
     gl.uniformMatrix4fv(barShader.getUniformLocation(BAR_SHADER_CONFIG.uniforms.uMMatrix), false, modelMatrix);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, barBuffer);
@@ -244,13 +256,14 @@ function drawBars() {
     gl.disableVertexAttribArray(barShader.getAttribLocation(BAR_SHADER_CONFIG.attributes.vertices));
 }
 
-function drawParticles(particleContainer, audioIntensity = 0.3) {
+function drawParticles(particleContainer, audioIntensity = 0.2) {
   // uniform sampler2D tNoise;
 
   const BASE_SCALE = 5;
   const SCALE_MULTIPLIER = 20;
 
   gl.useProgram(gpuParticleShader.getProgram());
+  gl.uniformMatrix4fv(gpuParticleShader.getUniformLocation(SHADER_GPU_PARTICLE_CONFIG.uniforms.modelMatrix), false, particlesModelMatrix);
   gl.uniformMatrix4fv(gpuParticleShader.getUniformLocation(SHADER_GPU_PARTICLE_CONFIG.uniforms.projectionMatrix), false, perspectiveMatrix);
   gl.uniformMatrix4fv(gpuParticleShader.getUniformLocation(SHADER_GPU_PARTICLE_CONFIG.uniforms.modelViewMatrix), false, camera.getModelViewMatrix());
   gl.uniform3fv(gpuParticleShader.getUniformLocation(SHADER_GPU_PARTICLE_CONFIG.uniforms.position), [0, 0, 0]);
@@ -281,6 +294,22 @@ function drawParticles(particleContainer, audioIntensity = 0.3) {
 function updateParticles(gl, tick, clockDelta, audioBins) {
   const spawnRate = 10;
   const MAX_SPAWN = 100;
+
+  const clampedTick = MathUtils.clamp(tick);
+
+  // const centerX = (canvasDimensions.left + canvasDimensions.width) / 2;
+  // const centerY = (canvasDimensions.top + canvasDimensions.height) / 2;
+  // const mouseVec = [
+  //   (centerX - mousePosition.x) / canvasDimensions.width / 10,
+  //   (centerY - mousePosition.y) / canvasDimensions.height / 10
+  // ];
+
+  // mat4.rotateZ(particlesModelMatrix, particlesModelMatrix, 0.008 * clampedTick);
+  // mat4.rotateY(particlesModelMatrix, particlesModelMatrix, mouseVec[0] * clampedTick);
+  // mat4.rotateZ(particlesModelMatrix, particlesModelMatrix, -mouseVec[1] * clampedTick);
+  mat4.rotateY(particlesModelMatrix, particlesModelMatrix, 0.01 * clampedTick);
+  mat4.rotateZ(particlesModelMatrix, particlesModelMatrix, 0.009 * clampedTick);
+
   for (let i = 0; i < particleContainers.length; i++) {
     const particleContainer = particleContainers[i];
     // const audioIntensity = audioBins[i] || 0.5;
@@ -293,7 +322,8 @@ function updateParticles(gl, tick, clockDelta, audioBins) {
     for (let j = 0; j < numberOfParticlesToSpawn && j < MAX_SPAWN; j++) {
       particleContainer.spawnParticle({
         // position: [scale * x, scale * y, 0],
-        velocityRandomness: 0.4,
+        // velocity: [0, 1, 0],
+        velocityRandomness: 0.5,
         color: color,
         colorRandomness: 0,
         lifetime: 6,
@@ -413,6 +443,14 @@ function handleInput() {
 
 }
 
+function bindMouseHandlers () {
+  $(document).on('mousemove', (event) => {
+    const { clientX, clientY } = event;
+    mousePosition.x = clientX;
+    mousePosition.y = clientY;
+  });
+}
+
 function bindKeyHandlers () {
   const $document = $(document);
   $document.on("keydown", (event) => {
@@ -473,6 +511,7 @@ function onLoad () {
   canvas = document.getElementById("canvas");
   perspectiveMatrix = makePerspectiveMatrix();
   setupStats();
+  bindMouseHandlers();
   bindKeyHandlers();
 
   uiController.bind();
@@ -494,14 +533,23 @@ function onLoad () {
 
 
   gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
-  gl.clearColor(0.0, 0.0, 0.0, 1.0);
+  gl.clearColor(0.0, 0.0, 0.0, 1);
   gl.disable(gl.DEPTH_TEST);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
   requestAnimationFrame(drawScene);
 }
 
+function storeCanvasDimensions (canvas) {
+  const { clientWidth, clientHeight, clientTop, clientLeft } = gl.canvas;
+  canvasDimensions.top = clientTop;
+  canvasDimensions.left = clientLeft;
+  canvasDimensions.width = clientWidth;
+  canvasDimensions.height = clientHeight;
+}
+
 function resize() {
+  storeCanvasDimensions(gl.canvas);
   const width = gl.canvas.clientWidth;
   const height = gl.canvas.clientHeight;
   if (gl.canvas.width != width ||
