@@ -5,7 +5,7 @@
 
 /* global Uint8Array */
 
-import MediaQueue from 'audio/mediaQueue';
+import MediaQueue from 'audio/queue';
 
 export const AUDIO_STATE = {
   OFF: "OFF",
@@ -22,8 +22,7 @@ class AudioManager {
     this.analyser = null;
     this.state = AUDIO_STATE.OFF;
     this.currentMediaSource = null;
-    this.stateListeners = [];
-    this.queueListeners = [];
+    this.subscribers = [];
   }
 
   getAudioContext() {
@@ -34,42 +33,27 @@ class AudioManager {
     return this.state === AUDIO_STATE.PLAYING;
   }
 
+  isPaused() {
+    return this.state === AUDIO_STATE.PAUSED;
+  }
+
+  isOff() {
+    return this.state === AUDIO_STATE.OFF;
+  }
+
   addMediaSource (mediaSource) {
     if (this.mediaQueue.size() === 0 && !this.isPlaying()) {
       this.connectMediaSource(mediaSource);
     } else if (mediaSource.shouldAllowQueueing()) {
       this.mediaQueue.enqueue(mediaSource);
-      this.notifyQueueListeners();
     } else {
       console.error("Attempt to enqueue source that doesn't allow queueing");
     }
 
   }
 
-  notifyQueueListeners() {
-    for (let i = 0; i < this.stateListeners.length; i++) {
-      this.queueListeners[i]();
-    }
-  }
-
-  notifyStateListeners (previousState, newState) {
-    for (let i = 0; i < this.stateListeners.length; i++) {
-      this.stateListeners[i](previousState, newState);
-    }
-  }
-
   setState (newState) {
-    const previousState = this.state;
     this.state = newState;
-    this.notifyStateListeners(previousState, newState);
-  }
-
-  registerQueueListener(callback) {
-    this.queueListeners.push(callback);
-  }
-
-  registerStateListener(callback) {
-    this.stateListeners.push(callback);
   }
 
   getQueueInfo() {
@@ -78,7 +62,6 @@ class AudioManager {
 
   removeQueueIndex(index) {
     this.mediaQueue.popIndex(index);
-    this.notifyQueueListeners();
   }
 
   getCurrentSourceInfo() {
@@ -86,7 +69,7 @@ class AudioManager {
       return null;
     }
     return {
-      label: this.currentMediaSource.getLabel(),
+      title: this.currentMediaSource.getTitle(),
       metadata: this.currentMediaSource.getMetaData(),
       type: this.currentMediaSource.getType()
     };
@@ -101,7 +84,6 @@ class AudioManager {
     console.log("song ended");
     if (this.mediaQueue.size() > 0) {
       const nextSource = this.mediaQueue.dequeue();
-      this.notifyQueueListeners();
       this.connectMediaSource(nextSource);
     } else {
       this.currentMediaSource = null;
@@ -136,13 +118,17 @@ class AudioManager {
 
   resume () {
     if (this.audioContext.state === "suspended") {
-      this.audioContext.resume().then(() => this.setState(AUDIO_STATE.PLAYING));
+      return this.audioContext.resume().then(() => this.setState(AUDIO_STATE.PLAYING));
+    } else {
+      return Promise.resolve();
     }
   }
 
   pause () {
     if (this.audioContext.state === "running") {
-      this.audioContext.suspend().then(() => this.setState(AUDIO_STATE.PAUSED));
+      return this.audioContext.suspend().then(() => this.setState(AUDIO_STATE.PAUSED));
+    } else {
+      return Promise.resolve();
     }
   }
 

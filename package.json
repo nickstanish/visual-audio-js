@@ -30,9 +30,13 @@
   },
   "homepage": "https://github.com/nickstanish/visual-audio-js#readme",
   "dependencies": {
+    "classnames": "^2.2.5",
+    "eventemitter3": "^2.0.1",
     "express": "^4.13.3",
     "gl-matrix": "^2.3.2",
     "jade": "^1.11.0",
+    "react": "^15.3.2",
+    "react-dom": "^15.3.2",
     "soundcloud-audio": "^1.0.4"
   },
   "devDependencies": {
@@ -40,9 +44,12 @@
     "babel-core": "^6.10.4",
     "babel-eslint": "^6.1.2",
     "babel-loader": "^6.2.4",
+    "babel-plugin-transform-class-properties": "^6.11.5",
     "babel-preset-es2015": "^6.9.0",
+    "babel-preset-react": "^6.11.1",
     "css-loader": "^0.23.1",
     "eslint": "^2.13.1",
+    "eslint-plugin-react": "^6.3.0",
     "extract-text-webpack-plugin": "^1.0.1",
     "less": "^2.7.1",
     "less-loader": "^2.2.3",

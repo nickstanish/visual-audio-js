@@ -4,6 +4,7 @@ var ExtractTextPlugin = require('extract-text-webpack-plugin');
 var webpackConfig = {
   devtool: 'source-map',
   entry: [
+    "./src/javascripts/polyfills.js",
     "./src/javascripts/main.js"
   ],
   output: {
@@ -23,10 +24,7 @@ var webpackConfig = {
       {
         test: /.jsx?$/,
         exclude: /node_modules/,
-        loader: 'babel-loader',
-        query: {
-          presets: ['es2015']
-        }
+        loader: 'babel-loader'
       },
       {
         test: /.less$/,

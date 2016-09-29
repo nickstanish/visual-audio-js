@@ -23,15 +23,20 @@ class MicSource extends MediaSource {
   constructor(audioContext, file) {
     super(SOURCE_TYPES.MIC, audioContext, false, false);
     this.file = file;
-    this.isLoaded = false;
+  }
 
-    this.fileLoaderPromise = createMicAudioNode(audioContext).then((audioNode) => {
-      this.isLoaded = true;
+  load() {
+    if (this._loadingPromise) {
+      return this._loadingPromise;
+    }
+    this._loadingPromise = createMicAudioNode(this.audioContext).then((audioNode) => {
+      this.loaded = true;
       this.audioNode = audioNode;
       return Promise.resolve();
     }).catch((error) => {
       return Promise.reject(error);
     });
+    return this._loadingPromise;
   }
 }
 

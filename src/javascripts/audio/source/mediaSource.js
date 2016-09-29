@@ -25,17 +25,12 @@ export class MediaSource {
     this.allowQueuing = allowQueuing;
     this.label = null;
     this.metaData = null;
-    this.isLoaded = true;
+    this.loaded = false;
     this.audioNode = null;
-    this.fileLoaderPromise = Promise.resolve();
   }
 
   isLoaded() {
-    return this.isLoaded;
-  }
-
-  onLoaded(onSuccess, onError) {
-    this.fileLoaderPromise.then(onSuccess, onError);
+    return this.loaded;
   }
 
   shouldConnectDestination() {
@@ -46,8 +41,8 @@ export class MediaSource {
     return this.allowQueuing;
   }
 
-  getLabel() {
-    return this.label;
+  getTitle() {
+    return this.title;
   }
 
   getMetaData() {

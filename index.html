@@ -8,7 +8,6 @@
     <script src="public/js/jquery-2.1.4.min.js" defer></script>
     <script src="public/js/bootstrap.min.js" defer></script>
     <script src="public/js/stats.min.js" defer></script>
-    <script src="public/js/visual-audio.js" defer></script>
     <script async defer src="https://buttons.github.io/buttons.js"></script>
   </head>
   <body>
@@ -16,58 +15,14 @@
       <canvas id="canvas"></canvas>
       <div id="overlay">
         <div id="overlay-wrapper" class="user-select">
+          <div id="bind-node"><!-- bind react here --></div>
           <div id="gh-buttons">
             <a class="github-button" href="https://github.com/nickstanish/visual-audio-js" data-icon="octicon-star" data-style="mega" data-count-href="/nickstanish/visual-audio-js/stargazers" data-count-api="/repos/nickstanish/visual-audio-js#stargazers_count" data-count-aria-label="# stargazers on GitHub" aria-label="Star nickstanish/visual-audio-js on GitHub">Star</a>
           </div>
-          <div id="audio-controls">
-            <div id="audio-chooser">
-              <label id="voice-chooser">
-                <div class="btn btn-default media-btn">
-                  <div class="glyphicon glyphicon-record"></div>
-                </div>
-              </label>
-              <label for="audioFile" id="file-chooser">
-                <div class="btn btn-default media-btn">
-                  <div class="glyphicon glyphicon-folder-open"></div>
-                </div>
-                <input id="audioFile" type="file" multiple accept="audio/*">
-              </label>
-              <form id="urlSourceForm">
-                <input id="urlSource" class="form-input" type="text" placeholder="Url">
-                <button type="submit"><i class="fa fa-plus-square"></i></button>
-                <div class="url-icons">
-                  <a href="https://soundcloud.com" title="SoundCloud" target="_blank"><i class="fa fa-soundcloud"></i></a>
-                </div>
-              </form>
-
-            </div>
-            <div id="media-player" class="off paused">
-              <div id="media-controls" class="user-select">
-                <div data-control="play" class="btn btn-default media-btn">
-                  <div class="glyphicon glyphicon-play"></div>
-                </div>
-                <div data-control="pause" class="btn btn-default media-btn">
-                  <div class="glyphicon glyphicon-pause"></div>
-                </div>
-                <div data-control="stop" class="btn btn-default media-btn">
-                  <div class="glyphicon glyphicon-stop"></div>
-                </div>
-                <div data-control="next" class="btn btn-default media-btn">
-                  <div class="glyphicon glyphicon-step-forward"></div>
-                </div>
-              </div>
-              <div id="now-playing" class="user-select"></div>
-            </div>
-            <div id="media-queue"></div>
-          </div>
-        </div>
-      </div>
-      <div id="start">
-        <div class="start-container">
-          <h1 class="start-message">Click to start playing</h1>
-          <h2 class="start-subtext">This link has a song attached to it</h2>
         </div>
       </div>
     </div>
+    <!-- scripts -->
+    <script src="public/js/visual-audio.js" defer></script>
   </body>
 </html>

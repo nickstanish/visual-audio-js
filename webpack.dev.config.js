@@ -5,6 +5,7 @@ const webpackConfig = {
   devtool: 'source-map',
   entry: [
     './node_modules/webpack/hot/dev-server.js',
+    "./src/javascripts/polyfills.js",
     "./src/javascripts/main.js"
   ],
   output: {
@@ -25,10 +26,7 @@ const webpackConfig = {
       {
         test: /.jsx?$/,
         exclude: /node_modules/,
-        loader: 'babel-loader',
-        query: {
-          presets: ['es2015']
-        }
+        loader: 'babel-loader'
       },
       {
         test: /.less$/,

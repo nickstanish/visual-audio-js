@@ -14,16 +14,19 @@ class SoundCloudSource extends MediaSource {
   constructor(audioContext, url) {
     super(SOURCE_TYPES.SOUNDCLOUD, audioContext, true);
     this.url = url;
-    this.label = url;
-    this.isLoaded = false;
+    this.title = url;
     this.error = false;
     this.soundCloudPlayer = initSoundCloudApi(config.apis.soundCloud.clientKey);
     this.soundCloudTrackInfo = null;
-    this.onEndedCallbacks = []
+  }
 
-    this.fileLoaderPromise = Promise.race([
+  load() {
+    if (this._loadingPromise) {
+      return this._loadingPromise;
+    }
+    this._loadingPromise = Promise.race([
       new Promise((resolve, reject) => {
-        this.soundCloudPlayer.resolve(url, (track) => {
+        this.soundCloudPlayer.resolve(this.url, (track) => {
           if (this.error) {
             console.log('error', this.error);
             reject(this.error);
@@ -34,9 +37,8 @@ class SoundCloudSource extends MediaSource {
 
           const audioElement = this.soundCloudPlayer.audio;
           audioElement.crossOrigin = "anonymous";
-          this.isLoaded = true;
-          this.audioNode = audioContext.createMediaElementSource(audioElement);
-
+          this.loaded = true;
+          this.audioNode = this.audioContext.createMediaElementSource(audioElement);
           resolve();
         });
       }),
@@ -48,22 +50,15 @@ class SoundCloudSource extends MediaSource {
         }, LOAD_TIMEOUT_MS);
       })
     ]);
-
+    return this._loadingPromise;
   }
 
   onEnded(callback) {
-    this.onEndedCallbacks.push(callback);
-  }
-
-  _onEnd() {
-    for (let i = 0; i < this.onEndedCallbacks.length; i++) {
-      this.onEndedCallbacks[i]();
-    }
-    this.onEndedCallbacks.splice(0);
+    this.soundCloudPlayer.on('ended', callback);
   }
 
   play() {
-    this.soundCloudPlayer.on('ended', () => this._onEnd());
+
     this.soundCloudPlayer.play();
   }
 

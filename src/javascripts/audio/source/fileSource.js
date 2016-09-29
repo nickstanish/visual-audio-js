@@ -46,19 +46,23 @@ class FileSource extends MediaSource {
     super(SOURCE_TYPES.FILE, audioContext, true);
     this.file = file;
     this.fileName = file.name;
-    this.label = this.fileName;
-    this.isLoaded = false;
+    this.title = this.fileName;
+  }
 
-    this.fileLoaderPromise = loadFile(file).then((fileBuffer) => {
-      return decodeAudioData(audioContext, fileBuffer);
+  load () {
+    if (this._loadingPromise) {
+      return this._loadingPromise;
+    }
+    this._loadingPromise = loadFile(this.file).then((fileBuffer) => {
+      return decodeAudioData(this.audioContext, fileBuffer);
     }).then((audioNode) => {
-      this.isLoaded = true;
+      this.loaded = true;
       this.audioNode = audioNode;
       return Promise.resolve();
     }).catch((error) => {
       return Promise.reject(error);
     });
-
+    return this._loadingPromise;
   }
 }
 
