@@ -28,6 +28,33 @@ import { BAR_SHADER_CONFIG, SHADER_GPU_PARTICLE_CONFIG, QUAD_SHADER_CONFIG } fro
 import * as InputKeys from 'input/inputKeys';
 import * as InputActions from 'input/inputActions';
 
+const Quality = {
+  /**
+   * - real device pixel size
+   * - furthest `far` distance
+   * */
+  HIGH: "HIGH",
+  /**
+   * - css pixel size
+   * - normal `far` distance
+   * */
+  MEDIUM: 'MEDIUM',
+  /**
+   * - much less pixels for rendering and scales it larger
+   * - closer `far` distance
+   * */
+  LOW: 'LOW'
+};
+
+
+let selectedQuality = Quality.MEDIUM;
+
+// TODO: make available through UI
+window.setQuality = function (quality) {
+  selectedQuality = quality;
+}
+window.Quality = Quality;
+//
 
 const camera = new Camera();
 const keyInput = new KeyInput();
@@ -36,17 +63,6 @@ const inputHandlers = {};
 const clock = new Clock(true);
 const particleContainers = [];
 const MAX_PARTICLE_CONTAINERS = 8;
-const mousePosition = {
-  x: 0,
-  y: 0
-};
-
-const canvasDimensions = {
-  top: 0,
-  left: 0,
-  width: 0,
-  height: 0
-};
 
 let perspectiveMatrix = null;
 let canvas = null;
@@ -147,11 +163,7 @@ function initQuadBuffer() {
   gl.bufferData(gl.ARRAY_BUFFER, quadVertices, gl.STATIC_DRAW);
 }
 
-function initFrameBuffer () {
-  storeCanvasDimensions(gl.canvas);
-  const width = gl.canvas.clientWidth;
-  const height = gl.canvas.clientHeight;
-
+function initFrameBuffer (width, height) {
   frameBuffer = gl.createFramebuffer();
   gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
   frameBuffer.width = width;
@@ -194,7 +206,7 @@ function initTextures() {
 function initBuffers() {
   initQuadBuffer();
   initTextures();
-  initFrameBuffer();
+  initFrameBuffer(gl.canvas.clientWidth, gl.canvas.clientHeight);
 }
 
 function drawBars() {
@@ -269,6 +281,7 @@ function drawParticles(particleContainer, audioIntensity = 0.2) {
   gl.uniform3fv(gpuParticleShader.getUniformLocation(SHADER_GPU_PARTICLE_CONFIG.uniforms.position), [0, 0, 0]);
   gl.uniform1f(gpuParticleShader.getUniformLocation(SHADER_GPU_PARTICLE_CONFIG.uniforms.uTime), particleContainer.time);
   gl.uniform1f(gpuParticleShader.getUniformLocation(SHADER_GPU_PARTICLE_CONFIG.uniforms.uScale), BASE_SCALE + SCALE_MULTIPLIER * audioIntensity);
+  gl.uniform1f(gpuParticleShader.getUniformLocation(SHADER_GPU_PARTICLE_CONFIG.uniforms.pixelDensity), getPixelDensity());
 
 
   gl.uniform1i(gpuParticleShader.getUniformLocation(SHADER_GPU_PARTICLE_CONFIG.uniforms.tSprite), 1);
@@ -297,16 +310,6 @@ function updateParticles(gl, tick, clockDelta, audioBins) {
 
   const clampedTick = MathUtils.clamp(tick);
 
-  // const centerX = (canvasDimensions.left + canvasDimensions.width) / 2;
-  // const centerY = (canvasDimensions.top + canvasDimensions.height) / 2;
-  // const mouseVec = [
-  //   (centerX - mousePosition.x) / canvasDimensions.width / 10,
-  //   (centerY - mousePosition.y) / canvasDimensions.height / 10
-  // ];
-
-  // mat4.rotateZ(particlesModelMatrix, particlesModelMatrix, 0.008 * clampedTick);
-  // mat4.rotateY(particlesModelMatrix, particlesModelMatrix, mouseVec[0] * clampedTick);
-  // mat4.rotateZ(particlesModelMatrix, particlesModelMatrix, -mouseVec[1] * clampedTick);
   mat4.rotateY(particlesModelMatrix, particlesModelMatrix, 0.01 * clampedTick);
   mat4.rotateZ(particlesModelMatrix, particlesModelMatrix, 0.009 * clampedTick);
 
@@ -339,7 +342,7 @@ function makePerspectiveMatrix() {
   const aspect = canvas.clientWidth / canvas.clientHeight;
   const FIELD_OF_VIEW_DEGREES = 50.0;
   const NEAR = 0.1;
-  const FAR = 1000.0;
+  const FAR = getFar();
   mat4.perspective(perspectiveMatrix, MathUtils.degreesToRadians(FIELD_OF_VIEW_DEGREES), aspect, NEAR, FAR);
   return perspectiveMatrix;
 }
@@ -443,14 +446,6 @@ function handleInput() {
 
 }
 
-function bindMouseHandlers () {
-  $(document).on('mousemove', (event) => {
-    const { clientX, clientY } = event;
-    mousePosition.x = clientX;
-    mousePosition.y = clientY;
-  });
-}
-
 function bindKeyHandlers () {
   const $document = $(document);
   $document.on("keydown", (event) => {
@@ -512,7 +507,6 @@ function onLoad () {
   canvas = document.getElementById("canvas");
   perspectiveMatrix = makePerspectiveMatrix();
   setupStats();
-  bindMouseHandlers();
   bindKeyHandlers();
 
   uiController.bind();
@@ -541,24 +535,41 @@ function onLoad () {
   requestAnimationFrame(drawScene);
 }
 
-function storeCanvasDimensions (canvas) {
-  const { clientWidth, clientHeight, clientTop, clientLeft } = gl.canvas;
-  canvasDimensions.top = clientTop;
-  canvasDimensions.left = clientLeft;
-  canvasDimensions.width = clientWidth;
-  canvasDimensions.height = clientHeight;
+function getPixelDensity() {
+  switch (selectedQuality) {
+    case Quality.HIGH:
+      return window.devicePixelRatio || 1;
+    case Quality.LOW:
+      return 0.5;
+    case Quality.MEDIUM:
+    default:
+      return 1;
+  }
+}
+
+function getFar() {
+  switch (selectedQuality) {
+    case Quality.HIGH:
+      return 10000;
+    case Quality.LOW:
+      return 50;
+    case Quality.MEDIUM:
+    default:
+      return 1000;
+  }
 }
 
 function resize() {
-  storeCanvasDimensions(gl.canvas);
-  const width = gl.canvas.clientWidth;
-  const height = gl.canvas.clientHeight;
-  if (gl.canvas.width != width ||
-      gl.canvas.height != height) {
+  const pixelDensity = getPixelDensity();
+  const width  = Math.floor(gl.canvas.clientWidth  * pixelDensity);
+  const height = Math.floor(gl.canvas.clientHeight * pixelDensity);
 
-     initFrameBuffer();
+  if (gl.canvas.width != width || gl.canvas.height != height) {
+
+     initFrameBuffer(width, height);
      gl.canvas.width = width;
      gl.canvas.height = height;
+
      gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
   }
 

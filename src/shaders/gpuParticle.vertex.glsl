@@ -65,7 +65,7 @@ uniform mat4 modelViewMatrix;
 uniform mat4 modelMatrix;
 uniform vec3 position;
 
-
+uniform float pixelDensity;
 uniform float uTime;
 uniform float uScale;
 // uniform sampler2D tNoise;
@@ -92,7 +92,7 @@ void main() {
 
   lifeLeft = 1. - (timeElapsed / particleVelColSizeLife.w);
 
-  gl_PointSize = ( uScale * particleVelColSizeLife.z ) * lifeLeft;
+  gl_PointSize = ( uScale * particleVelColSizeLife.z ) * lifeLeft * pixelDensity;
 
   velocity.x = ( velocity.x - .5 ) * 3.;
   velocity.y = ( velocity.y - .5 ) * 3.;
