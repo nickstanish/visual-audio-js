@@ -2,6 +2,7 @@
 import FileSource from 'audio/source/fileSource';
 import MicSource from 'audio/source/micSource';
 import SoundCloudSource from 'audio/source/soundCloudSource';
+import AudioElementSource from 'audio/source/audioElementSource';
 
 import { AUDIO_STATE } from 'audio/audioManager';
 import { SOURCE_TYPES } from 'audio/source/mediaSource';
@@ -64,7 +65,13 @@ class UIController {
 
 
     $("body").on("click", "#media-queue [data-queue-index].close", (event) => this.onRemoveQueueItem(event))
+    this.init();
+  }
 
+  init() {
+    const defaultSample = "public/samples/Broke_For_Free_-_01_-_Night_Owl.mp3";
+    $(urlInputId).val(defaultSample);
+    this.updateUrlHasText();
   }
 
   loadPredefinedUrl (url) {
@@ -279,6 +286,8 @@ class UIController {
     const audioContext = this.audioManager.getAudioContext();
     if (SOUNDCLOUD.test(urlToTry)) {
       source = new SoundCloudSource(audioContext, urlToTry);
+    } else {
+      source= new AudioElementSource(audioContext, urlToTry);
     }
     if (source) {
       this.addSource(source);
