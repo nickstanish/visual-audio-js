@@ -23,7 +23,7 @@ class RGBColor {
   }
 }
 
-export const COLOR_MAP = {
+export const COLOR_NAMES = {
   red: new RGBColor(244, 67, 54),
   purple: new RGBColor(156, 39, 176),
   blue: new RGBColor(33, 150, 243),
@@ -31,8 +31,17 @@ export const COLOR_MAP = {
   yellow: new RGBColor(255, 235, 59),
   orange: new RGBColor(255, 152, 0),
   cyan: new RGBColor(0, 172, 193),
-  pink: new RGBColor(233, 30, 99)
-  // nightVision: 0x3EF1A5
+  hotPink: new RGBColor(255, 105, 180),
+  nightVision: new RGBColor(62, 241, 165)
 };
 
-export const COLORS = Object.keys(COLOR_MAP).map(key => COLOR_MAP[key]);
+export const COLORS = [
+  COLOR_NAMES.purple,
+  COLOR_NAMES.blue,
+  COLOR_NAMES.cyan,
+  COLOR_NAMES.green,
+  COLOR_NAMES.yellow,
+  COLOR_NAMES.orange,
+  COLOR_NAMES.hotPink,
+  COLOR_NAMES.red
+];

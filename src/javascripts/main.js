@@ -1,5 +1,5 @@
 /**
-* Copyright 2015-2016 Nick Stanish
+* Copyright 2015-2017 Nick Stanish
 *
 */
 
@@ -12,7 +12,7 @@ import polyfill from 'polyfills';
 import glMatrix from 'gl-matrix';
 
 glMatrix.glMatrix.setMatrixArrayType(Float32Array);
-const {mat4, vec4 } = glMatrix;
+const { mat4, vec3, vec4 } = glMatrix;
 import * as MathUtils from 'utils/math';
 import * as BrowserUtils from 'utils/browser';
 import Camera from 'camera/camera';
@@ -271,8 +271,8 @@ function drawBars() {
 function drawParticles(particleContainer, audioIntensity = 0.2) {
   // uniform sampler2D tNoise;
 
-  const BASE_SCALE = 5;
-  const SCALE_MULTIPLIER = 20;
+  const BASE_SCALE = audioManager.isPlaying() ? 0 : 5;
+  const SCALE_MULTIPLIER = 30;
 
   gl.useProgram(gpuParticleShader.getProgram());
   gl.uniformMatrix4fv(gpuParticleShader.getUniformLocation(SHADER_GPU_PARTICLE_CONFIG.uniforms.modelMatrix), false, particlesModelMatrix);
@@ -310,8 +310,10 @@ function updateParticles(gl, tick, clockDelta, audioBins) {
 
   const clampedTick = MathUtils.clamp(tick);
 
-  mat4.rotateY(particlesModelMatrix, particlesModelMatrix, 0.01 * clampedTick);
-  mat4.rotateZ(particlesModelMatrix, particlesModelMatrix, 0.009 * clampedTick);
+  if (audioManager.isPlaying()) {
+    mat4.rotateY(particlesModelMatrix, particlesModelMatrix, 0.01 * clampedTick);
+    mat4.rotateZ(particlesModelMatrix, particlesModelMatrix, 0.009 * clampedTick);
+  }
 
   for (let i = 0; i < particleContainers.length; i++) {
     const particleContainer = particleContainers[i];
@@ -323,14 +325,19 @@ function updateParticles(gl, tick, clockDelta, audioBins) {
     // const y = Math.floor(i / 4) - 0.5;
     particleContainer.update(tick, gl);
     for (let j = 0; j < numberOfParticlesToSpawn && j < MAX_SPAWN; j++) {
+      const radians = 2 * i * Math.PI / particleContainers.length;
+      const radius = 1.25;
+      const position = vec3.fromValues(radius * Math.cos(radians), radius * Math.sin(radians), 0);
+      const velocity = vec3.normalize(vec3.create(), position);
+
       particleContainer.spawnParticle({
-        // position: [scale * x, scale * y, 0],
-        // velocity: [0, 1, 0],
+        position,
+        velocity: velocity,
         velocityRandomness: 0.5,
         color: color,
         colorRandomness: 0,
-        lifetime: 6,
-        sizeRandomness: 0.5
+        lifetime: 3,
+        sizeRandomness: 0.4
       });
     }
   }
