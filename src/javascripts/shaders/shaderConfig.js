@@ -8,7 +8,8 @@ export const SHADER_GPU_PARTICLE_CONFIG = {
     position: "position",
     uTime: "uTime",
     uScale: "uScale",
-    tSprite: "tSprite"
+    tSprite: "tSprite",
+    pixelDensity: "pixelDensity"
   },
   attributes: {
     particlePositionsStartTime: 'particlePositionsStartTime',

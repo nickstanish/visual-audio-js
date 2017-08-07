@@ -20,11 +20,12 @@ const SOUNDCLOUD = /soundcloud.com/;
 
 
 class UIController {
-  constructor(audioManager) {
+  constructor(audioManager, store) {
     this.audioManager = audioManager;
+    this.store = store;
   }
 
-  bind () {
+  registerUI () {
     this.audioManager.registerStateListener(this.onAudioStateChange.bind(this));
     this.audioManager.registerQueueListener(this.onQueueChanged.bind(this));
 
@@ -62,16 +63,33 @@ class UIController {
       $urlInput.blur();
     });
 
-
-
+    $("body").on("click", "#settings [data-quality]", (event) => this.setQuality(event))
     $("body").on("click", "#media-queue [data-queue-index].close", (event) => this.onRemoveQueueItem(event))
     this.init();
+  }
+
+  setQuality(event) {
+    const quality = $(event.target).attr("data-quality");
+    this.store.updateState({
+      quality
+    });
   }
 
   init() {
     const defaultSample = "public/samples/Broke_For_Free_-_01_-_Night_Owl.mp3";
     $(urlInputId).val(defaultSample);
     this.updateUrlHasText();
+    this.unsubscribe = this.store.subscribe(this.onStateUpdated)
+  }
+
+  onStateUpdated(newState) {
+    const $activeQuality = $("#settings [data-quality].active");
+    if ($activeQuality.attr('data-quality') !== newState.quality) {
+      $activeQuality.removeClass('active');
+      if (['LOW', 'MEDIUM', 'HIGH'].includes(newState.quality)) {
+        $(`#settings [data-quality="${newState.quality}"]`).addClass('active');
+      }
+    }
   }
 
   loadPredefinedUrl (url) {

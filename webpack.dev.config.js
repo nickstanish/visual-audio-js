@@ -23,12 +23,9 @@ const webpackConfig = {
   module: {
     loaders: [
       {
-        test: /.jsx?$/,
+        test: /\.jsx?$/,
         exclude: /node_modules/,
-        loader: 'babel-loader',
-        query: {
-          presets: ['es2015']
-        }
+        loader: 'babel-loader'
       },
       {
         test: /.less$/,

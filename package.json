@@ -2,10 +2,8 @@
   "name": "visual-audio-js",
   "version": "1.0.0",
   "description": "Audio Visualizer with WebGL",
-  "main": "app.js",
   "scripts": {
-    "start": "nodemon --watch app.js app.js",
-    "dev": "webpack-dev-server --config=webpack.dev.config.js  --hot --colors --compress --inline --watch",
+    "start": "webpack-dev-server --config=webpack.dev.config.js  --hot --colors --compress --inline --watch",
     "build": "webpack --config=webpack.config.js",
     "clean": "rm -rf dist",
     "dist": "npm run clean && npm run build && mkdir -p dist && cp -r public index.html dist",
@@ -30,9 +28,8 @@
   },
   "homepage": "https://github.com/nickstanish/visual-audio-js#readme",
   "dependencies": {
-    "express": "^4.13.3",
-    "gl-matrix": "^2.3.2",
-    "jade": "^1.11.0",
+    "gl-matrix": "2.4.0",
+    "lodash.isequal": "^4.5.0",
     "soundcloud-audio": "^1.0.4"
   },
   "devDependencies": {
@@ -41,6 +38,7 @@
     "babel-eslint": "^6.1.2",
     "babel-loader": "^6.2.4",
     "babel-preset-es2015": "^6.9.0",
+    "babel-preset-stage-0": "^6.24.1",
     "css-loader": "^0.23.1",
     "eslint": "^2.13.1",
     "extract-text-webpack-plugin": "^1.0.1",
