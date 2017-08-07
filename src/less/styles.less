@@ -95,10 +95,10 @@ button[disabled], html input[disabled], [disabled], fieldset[disabled] {
 
 }
 
+
+#settings,
 #gh-buttons {
   position: absolute;
-  right: 0;
-  top: 0;
   margin: 15px;
   opacity: 0.5;
   -webkit-transition: all 0.2s ease-in-out;
@@ -107,4 +107,14 @@ button[disabled], html input[disabled], [disabled], fieldset[disabled] {
   &:hover {
     opacity: 1;
   }
+}
+
+#gh-buttons {
+  right: 0;
+  top: 0;
+}
+
+#settings {
+  bottom: 0;
+  left: 0;
 }
