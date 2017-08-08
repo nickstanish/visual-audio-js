@@ -23,19 +23,19 @@
           <div id="audio-controls">
             <div id="audio-chooser">
               <label id="voice-chooser">
-                <div class="btn btn-default media-btn">
+                <div class="btn btn-default media-btn" title="Use microphone as source">
                   <div class="glyphicon glyphicon-record"></div>
                 </div>
               </label>
-              <label for="audioFile" id="file-chooser">
+              <label for="audioFile" id="file-chooser" title="Select a song from your computer">
                 <div class="btn btn-default media-btn">
                   <div class="glyphicon glyphicon-folder-open"></div>
                 </div>
                 <input id="audioFile" type="file" multiple accept="audio/*">
               </label>
               <form id="urlSourceForm">
-                <input id="urlSource" class="form-input" type="text" placeholder="Url">
-                <button type="submit"><i class="fa fa-plus-square"></i></button>
+                <input id="urlSource" class="form-input" type="text" placeholder="Url" title="Play song from url (mp3 or soundcloud)">
+                <button type="submit" title="Play selected song"><i class="fa fa-plus-square pulse"></i></button>
                 <div class="url-icons">
                   <a href="https://soundcloud.com" title="SoundCloud" target="_blank"><i class="fa fa-soundcloud"></i></a>
                 </div>
@@ -44,16 +44,16 @@
             </div>
             <div id="media-player" class="off paused">
               <div id="media-controls" class="user-select">
-                <div data-control="play" class="btn btn-default media-btn">
+                <div data-control="play" class="btn btn-default media-btn" title="Play">
                   <div class="glyphicon glyphicon-play"></div>
                 </div>
-                <div data-control="pause" class="btn btn-default media-btn">
+                <div data-control="pause" class="btn btn-default media-btn" title="Pause">
                   <div class="glyphicon glyphicon-pause"></div>
                 </div>
-                <div data-control="stop" class="btn btn-default media-btn">
+                <div data-control="stop" class="btn btn-default media-btn" title="Stop">
                   <div class="glyphicon glyphicon-stop"></div>
                 </div>
-                <div data-control="next" class="btn btn-default media-btn">
+                <div data-control="next" class="btn btn-default media-btn" title="Next">
                   <div class="glyphicon glyphicon-step-forward"></div>
                 </div>
               </div>

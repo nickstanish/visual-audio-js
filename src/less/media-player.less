@@ -108,6 +108,7 @@
   height: 34px;
   width: 200px;
   vertical-align: middle;
+  -webkit-transition: width 0.1s ease-out 0s;
   transition: width 0.1s ease-out 0s;
 
   &:focus, &:hover {
@@ -126,12 +127,43 @@ form#urlSourceForm button[type="submit"] {
   vertical-align: middle;
   background: transparent;
   border: none;
+  -webkit-transition: all 0.2s ease-out 0s;
   transition: all 0.2s ease-out 0s;
 }
 
 #urlSource.__hasText ~button[type="submit"] {
   color: @white;
   opacity: 1;
+}
+
+
+.pulse {
+  -webkit-animation: pulse 1s ease-in-out infinite;
+          animation: pulse 1s ease-in-out infinite;
+}
+
+@-webkit-keyframes pulse {
+	0% {
+    color: rgba(255, 255, 255, 1);
+  }
+	50% {
+    color: rgba(33, 150, 243, 0.8);
+  }
+	100% {
+    color: rgba(255, 255, 255, 1);
+  }
+}
+
+@keyframes pulse {
+	0% {
+    color: rgba(255, 255, 255, 1);
+  }
+	50% {
+    color: rgba(33, 150, 243, 0.8);
+  }
+	100% {
+    color: rgba(255, 255, 255, 1);
+  }
 }
 
 
@@ -147,6 +179,7 @@ form#urlSourceForm button[type="submit"] {
   visibility: hidden;
   display: inline-block;
   opacity: 0;
+  -webkit-transition: all 0.2s ease-out 0s;
   transition: all 0.2s ease-out 0s;
 
   i.fa {

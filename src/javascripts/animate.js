@@ -3,7 +3,6 @@
 *
 */
 
-import polyfill from 'polyfills';
 import { glMatrix,  mat4, vec3, vec4 } from 'gl-matrix';
 glMatrix.setMatrixArrayType(Float32Array);
 
@@ -81,8 +80,6 @@ export default function animate(store, audioManager, uiController) {
       console.error(e);
     }
   }
-
-  polyfill();
 
   document.addEventListener("DOMContentLoaded", onLoad);
   // document.addEventListener("resize", onResize);
