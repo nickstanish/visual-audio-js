@@ -1,14 +1,16 @@
 # visual-audio-js
 
-Audio Visualizer built on WebGL and Web Audio using particles.
+Audio Visualizer for the web built on WebGL and WebAudio.
 
+
+## Setup
 
 ```
-# Install npm dependencies
 npm install
 ```
 
+## Running Locally
+
 ```
-# Watch source files for changes and recompile
-npm run dev
+npm start
 ```

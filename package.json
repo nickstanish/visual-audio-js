@@ -22,7 +22,7 @@
     "visualizer"
   ],
   "author": "Nick Stanish",
-  "license": "ISC",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/nickstanish/visual-audio-js/issues"
   },
