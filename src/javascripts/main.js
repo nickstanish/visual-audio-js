@@ -7,6 +7,8 @@ require('less/styles.less');
 window.VISUAL_AUDIO = {
   VERSION: window.VERSION
 };
+import polyfill from 'polyfills';
+polyfill();
 import animate from './animate';
 import createStore from './store';
 import { getInitialQuality } from './quality';
