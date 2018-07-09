@@ -22,9 +22,37 @@ import * as InputKeys from 'input/inputKeys';
 import * as InputActions from 'input/inputActions';
 import { Quality } from './quality';
 
+import ResourceManager from './resources/resource-manager';
+
+function initWebGL(canvas) {
+  let gl = null;
+
+  try {
+    // Try to grab the standard context. If it fails, fallback to experimental.
+    gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+  }
+  catch (e) {
+    console.error(e);
+    alert("Unable to initialize WebGL. Your browser may not support it.");
+  }
+  return gl;
+}
+
 
 export default function animate(store, audioManager, uiController) {
+  const resourceManager = new ResourceManager()
+  let loaded = false;
 
+  function getResources() {
+    resourceManager.addImage('star', 'public/images/alpha-star.png');
+    resourceManager.load().then(() => {
+      initTextures();
+      loaded = true;
+      onDoneLoading();
+    });
+  }
+
+  getResources();
   const camera = new Camera();
   const keyInput = new KeyInput();
   const inputHandlers = {};
@@ -82,22 +110,6 @@ export default function animate(store, audioManager, uiController) {
   }
 
   document.addEventListener("DOMContentLoaded", onLoad);
-  // document.addEventListener("resize", onResize);
-
-  function initWebGL(canvas) {
-    let gl = null;
-
-    try {
-      // Try to grab the standard context. If it fails, fallback to experimental.
-      gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
-    }
-    catch (e) {
-      console.error(e);
-      alert("Unable to initialize WebGL. Your browser may not support it.");
-    }
-    window.gl = gl;
-    return gl;
-  }
 
   let stats;
 
@@ -105,8 +117,7 @@ export default function animate(store, audioManager, uiController) {
   let barBuffer;
   let gl;
 
-  let smokeImage, smokeTexture;
-  let smokeReady = false;
+  let smokeTexture;
 
   let frameBuffer;
   let frameTexture;
@@ -145,30 +156,23 @@ export default function animate(store, audioManager, uiController) {
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, frameTexture, 0);
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-
   }
 
   function initTextures() {
     smokeTexture = gl.createTexture();
-    smokeImage = new Image();
-    smokeImage.onload = function () {
-      gl.activeTexture(gl.TEXTURE1);
-      gl.bindTexture(gl.TEXTURE_2D, smokeTexture);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, smokeImage);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-
-      smokeReady = true;
-    };
-    smokeImage.src = "public/images/alpha-star.png";
+    const particleResource = resourceManager.getResource('star');
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, smokeTexture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, particleResource.image);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   }
 
 
   function initBuffers() {
     initQuadBuffer();
-    initTextures();
     initFrameBuffer(gl.canvas.clientWidth, gl.canvas.clientHeight);
   }
 
@@ -321,15 +325,7 @@ export default function animate(store, audioManager, uiController) {
     uiController.loadPredefinedUrl(predefinedMedia);
   }
 
-  let loading = true;
   function drawScene() {
-    if (loading) {
-      if (smokeReady) {
-        loading = false;
-        onDoneLoading();
-      }
-    }
-
     handleInput();
     resize();
     stats.begin();
@@ -358,7 +354,7 @@ export default function animate(store, audioManager, uiController) {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
 
-    if (smokeReady) {
+    if (loaded) {
       for (let i = 0; i < particleContainers.length; i++) {
         drawParticles(particleContainers[i], audioBins[i]);
       }
