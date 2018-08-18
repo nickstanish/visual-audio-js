@@ -5,7 +5,7 @@ export function getQueryParams () {
   const queries = query.split('&');
   for (let i = 0; i < queries.length; i++) {
     const pair = queries[i].split('=', 2);
-    if (pair.length == 1) {
+    if (pair.length === 1) {
       obj[pair[0]] = "";
     } else {
       obj[pair[0]] = decodeURIComponent(pair[1].replace(/\+/g, " "));

@@ -1,5 +1,3 @@
-import { FRAGMENT_SOURCES, VERTEX_SOURCES } from './shaderSources';
-
 function compileShader(gl, name, source, type) {
   const shader = gl.createShader(type);
 
@@ -24,9 +22,8 @@ class ShaderProgram {
 
   compile (gl) {
     const { config } = this;
+    const { vertex: vertexSource, fragment: fragmentSource } = config;
 
-    const vertexSource = VERTEX_SOURCES[config.vertex];
-    const fragmentSource = FRAGMENT_SOURCES[config.fragment];
     const vertexShader = compileShader(gl, config.vertex, vertexSource, gl.VERTEX_SHADER);
     const fragmentShader = compileShader(gl, config.fragment, fragmentSource, gl.FRAGMENT_SHADER);
 

@@ -1,29 +1,36 @@
-/**
-* Copyright 2015-2017 Nick Stanish
-*
-*/
-
-import { glMatrix,  mat4, vec3, vec4 } from 'gl-matrix';
+/* eslint-disable import/first */
+/* global $ */
+import { glMatrix,  mat4, vec3, vec4 } from 'gl-matrix/dist/gl-matrix';
 glMatrix.setMatrixArrayType(Float32Array);
 
 
-import * as MathUtils from 'utils/math';
-import * as BrowserUtils from 'utils/browser';
-import Camera from 'camera/camera';
+import * as MathUtils from './utils/math';
+import Camera from './camera/camera';
 
-import Clock from 'three/clock';
-import GPUParticleContainer from 'particles/ParticleContainer';
-import KeyInput from 'input/keyInput';
-import { COLORS } from 'data/colors';
-import ShaderProgram from 'shaders/shaderProgram';
-import { BAR_SHADER_CONFIG, SHADER_GPU_PARTICLE_CONFIG, QUAD_SHADER_CONFIG } from 'shaders/shaderConfig';
+import Clock from './three/clock';
+import GPUParticleContainer from './particles/particleContainer';
+import KeyInput from './input/keyInput';
+import { COLORS } from './data/colors';
+import ShaderProgram from './shaders/shaderProgram';
+import { BAR_SHADER_CONFIG, SHADER_GPU_PARTICLE_CONFIG, QUAD_SHADER_CONFIG } from './shaders';
 
-import * as InputKeys from 'input/inputKeys';
-import * as InputActions from 'input/inputActions';
+import * as InputKeys from './input/inputKeys';
+import * as InputActions from './input/inputActions';
 import { Quality } from './quality';
 
 
-export default function animate(store, audioManager, uiController) {
+let bars;
+let barBuffer;
+let gl;
+
+let smokeImage, smokeTexture;
+let smokeReady = false;
+
+let frameBuffer;
+let frameTexture;
+let quadBuffer;
+
+export default function animate(store, audioManager, uiController, { stats, options }) {
 
   const camera = new Camera();
   const keyInput = new KeyInput();
@@ -48,45 +55,11 @@ export default function animate(store, audioManager, uiController) {
   const barShader = new ShaderProgram(BAR_SHADER_CONFIG);
   const quadShader = new ShaderProgram(QUAD_SHADER_CONFIG);
 
-  const options = {
-    maxParticles: 5000,
-    emissionRate: 2,
-    blur: false,
-    showBars: true
-  };
-
-  function isParamTrue (param) {
-    return (typeof param === 'boolean' && param) || (param.toLowerCase() === "true") || (param === "1");
-  }
-
-  const params = BrowserUtils.getQueryParams();
-  const predefinedMedia = params.media;
-  try {
-    if (params.max && parseInt(params.max) && parseInt(params.max) > 0){
-      options.maxParticles = parseInt(params.max);
-    }
-    if (params.rate && parseInt(params.rate) && parseInt(params.rate) > 0){
-      options.emissionRate = parseInt(params.rate);
-    }
-    if (params.bars){
-      options.showBars = isParamTrue(params.bars);
-    }
-    if (params.blur){
-      options.blur = isParamTrue(params.blur);
-    }
-
-  } catch (e) {
-    if (console.error) {
-      console.error(e);
-    }
-  }
-
-  document.addEventListener("DOMContentLoaded", onLoad);
+  onLoad();
+  // document.addEventListener("DOMContentLoaded", onLoad);
   // document.addEventListener("resize", onResize);
 
   function initWebGL(canvas) {
-    let gl = null;
-
     try {
       // Try to grab the standard context. If it fails, fallback to experimental.
       gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
@@ -95,22 +68,8 @@ export default function animate(store, audioManager, uiController) {
       console.error(e);
       alert("Unable to initialize WebGL. Your browser may not support it.");
     }
-    window.gl = gl;
     return gl;
   }
-
-  let stats;
-
-  let bars;
-  let barBuffer;
-  let gl;
-
-  let smokeImage, smokeTexture;
-  let smokeReady = false;
-
-  let frameBuffer;
-  let frameTexture;
-  let quadBuffer;
 
   function initQuadBuffer() {
     quadBuffer = gl.createBuffer();
@@ -151,7 +110,7 @@ export default function animate(store, audioManager, uiController) {
   function initTextures() {
     smokeTexture = gl.createTexture();
     smokeImage = new Image();
-    smokeImage.onload = function () {
+    smokeImage.onload = function() {
       gl.activeTexture(gl.TEXTURE1);
       gl.bindTexture(gl.TEXTURE_2D, smokeTexture);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, smokeImage);
@@ -162,7 +121,7 @@ export default function animate(store, audioManager, uiController) {
 
       smokeReady = true;
     };
-    smokeImage.src = "public/images/alpha-star.png";
+    smokeImage.src = `${process.env.PUBLIC_URL}/images/alpha-star.png`;
   }
 
 
@@ -318,7 +277,7 @@ export default function animate(store, audioManager, uiController) {
   }
 
   function onDoneLoading() {
-    uiController.loadPredefinedUrl(predefinedMedia);
+    uiController.loadPredefinedUrl(options.predefinedMedia);
   }
 
   let loading = true;
@@ -455,18 +414,6 @@ export default function animate(store, audioManager, uiController) {
     inputHandlers[InputActions.CAMERA_MOVE_NEG_Z] = () => camera.updateZ(-1);
   }
 
-  function setupStats() {
-    stats = new Stats();
-    stats.setMode(0); // 0: fps, 1: ms, 2: mb
-    // align top-left
-    stats.domElement.style.position = 'absolute';
-    stats.domElement.style.right = '0';
-    stats.domElement.style.top = 'auto';
-    stats.domElement.style.bottom = '0';
-
-    document.body.appendChild( stats.domElement );
-  }
-
   function initShaders() {
     gpuParticleShader.compile(gl);
     barShader.compile(gl);
@@ -476,7 +423,6 @@ export default function animate(store, audioManager, uiController) {
   function onLoad () {
     canvas = document.getElementById("canvas");
     perspectiveMatrix = makePerspectiveMatrix();
-    setupStats();
     bindKeyHandlers();
 
     uiController.registerUI();

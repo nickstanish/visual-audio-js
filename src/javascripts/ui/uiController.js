@@ -1,11 +1,11 @@
 /* globals $ */
-import FileSource from 'audio/source/fileSource';
-import MicSource from 'audio/source/micSource';
-import SoundCloudSource from 'audio/source/soundCloudSource';
-import AudioElementSource from 'audio/source/audioElementSource';
+import FileSource from '../audio/source/fileSource';
+import MicSource from '../audio/source/micSource';
+import SoundCloudSource from '../audio/source/soundCloudSource';
+import AudioElementSource from '../audio/source/audioElementSource';
 
-import { AUDIO_STATE } from 'audio/audioManager';
-import { SOURCE_TYPES } from 'audio/source/mediaSource';
+import { AUDIO_STATE } from '../audio/audioManager';
+import { SOURCE_TYPES } from '../audio/source/mediaSource';
 
 const mediaPlayerID = "#media-player";
 const audioChooserID = "#audio-chooser";
@@ -15,9 +15,7 @@ const mediaButtonID = ".media-btn";
 const urlInputId = "#urlSource";
 const urlFormId = "#urlSourceForm";
 
-
-const SOUNDCLOUD = /soundcloud.com/;
-
+const SOUNDCLOUD = /soundcloud\.com/;
 
 class UIController {
   constructor(audioManager, store) {
@@ -76,7 +74,7 @@ class UIController {
   }
 
   init() {
-    const defaultSample = "public/samples/Broke_For_Free_-_01_-_Night_Owl.mp3";
+    const defaultSample = `${process.env.PUBLIC_URL}/samples/Broke_For_Free_-_01_-_Night_Owl.mp3`;
     $(urlInputId).val(defaultSample);
     this.updateUrlHasText();
     this.unsubscribe = this.store.subscribe(this.onStateUpdated)

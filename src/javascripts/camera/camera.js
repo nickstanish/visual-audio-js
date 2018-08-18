@@ -1,4 +1,4 @@
-const glMatrix = require('gl-matrix');
+const glMatrix = require('gl-matrix/dist/gl-matrix');
 const { mat4 } = glMatrix;
 
 

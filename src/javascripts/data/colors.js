@@ -1,4 +1,4 @@
-import { rgbToHex, rgbToValue } from 'utils/math';
+import { rgbToHex, rgbToValue } from '../utils/math';
 
 class RGBColor {
   constructor(red, green, blue) {

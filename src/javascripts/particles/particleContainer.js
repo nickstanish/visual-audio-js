@@ -1,6 +1,6 @@
 
-import * as MathUtils from 'utils/math';
-import RandomsStore from 'data/RandomsStore'
+import * as MathUtils from '../utils/math';
+import RandomsStore from '../data/randomsStore'
 
 const DEFAULT_MAX_PARTICLES = 1e5;
 const DPR = window.devicePixelRatio;

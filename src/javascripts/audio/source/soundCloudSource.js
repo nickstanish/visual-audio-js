@@ -1,6 +1,6 @@
 import { MediaSource, SOURCE_TYPES } from './mediaSource';
 import SoundCloudAudio from 'soundcloud-audio';
-import config from 'config';
+import config from '../../config';
 
 const LOAD_TIMEOUT_MS = 5000;
 

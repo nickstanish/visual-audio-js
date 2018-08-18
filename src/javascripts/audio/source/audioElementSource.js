@@ -1,6 +1,6 @@
 import {MediaSource, SOURCE_TYPES} from './mediaSource';
 
-// TODO: fixed the onended 
+// TODO: fix the onended
 class AudioElementSource extends MediaSource {
   constructor(audioContext, url) {
     super(SOURCE_TYPES.AUDIO_ELEMENT, audioContext, true);

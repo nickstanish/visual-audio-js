@@ -5,7 +5,7 @@
 
 /* global Uint8Array */
 
-import MediaQueue from 'audio/mediaQueue';
+import MediaQueue from './mediaQueue';
 
 export const AUDIO_STATE = {
   OFF: "OFF",

@@ -3,13 +3,16 @@
   "version": "1.0.0",
   "description": "Audio Visualizer with WebGL",
   "scripts": {
-    "start": "webpack-dev-server --config=webpack.dev.config.js  --hot --colors --compress --inline --watch",
-    "build": "webpack --config=webpack.config.js",
-    "clean": "rm -rf dist",
-    "dist": "npm run clean && npm run build && mkdir -p dist && cp -r public index.html dist",
-    "gh-pages": "git subtree push --prefix dist origin gh-pages",
-    "lint": "eslint src",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "npm-run-all -p watch-css start-js",
+    "build": "npm-run-all build-css build-js build-docs",
+    "test": "react-scripts test --env=jsdom",
+    "build-css": "node-sass-chokidar src/ -o src/",
+    "watch-css": "npm run build-css && node-sass-chokidar src/ -o src/ --watch --recursive",
+    "start-js": "react-scripts start",
+    "build-js": "react-scripts build",
+    "build-docs": "rm -rf docs && cp -r build docs",
+    "eject": "react-scripts eject",
+    "lint": "eslint src"
   },
   "repository": {
     "type": "git",
@@ -26,28 +29,25 @@
   "bugs": {
     "url": "https://github.com/nickstanish/visual-audio-js/issues"
   },
-  "homepage": "https://github.com/nickstanish/visual-audio-js#readme",
+  "homepage": "https://nickstanish.com/visual-audio-js",
   "dependencies": {
-    "gl-matrix": "2.4.0",
+    "gl-matrix": "2.6.1",
     "lodash.isequal": "^4.5.0",
+    "node-sass-chokidar": "^1.3.3",
+    "npm-run-all": "^4.1.3",
+    "react": "^16.4.2",
+    "react-dom": "^16.4.2",
     "soundcloud-audio": "^1.0.4"
   },
   "devDependencies": {
-    "babel": "^6.5.2",
-    "babel-core": "^6.10.4",
-    "babel-eslint": "^6.1.2",
-    "babel-loader": "^6.2.4",
-    "babel-preset-es2015": "^6.9.0",
-    "babel-preset-stage-0": "^6.24.1",
-    "css-loader": "^0.23.1",
-    "eslint": "^2.13.1",
-    "extract-text-webpack-plugin": "^1.0.1",
-    "less": "^2.7.1",
-    "less-loader": "^2.2.3",
-    "load-grunt-tasks": "^3.3.0",
+    "babel-eslint": "^7.2.3",
+    "eslint": "^4.19.1",
+    "eslint-config-react-app": "^2.1.0",
+    "eslint-plugin-flowtype": "^2.50.0",
+    "eslint-plugin-import": "^2.14.0",
+    "eslint-plugin-jsx-a11y": "^5.1.1",
+    "eslint-plugin-react": "^7.11.1",
     "raw-loader": "^0.5.1",
-    "style-loader": "^0.13.1",
-    "webpack": "^1.12.2",
-    "webpack-dev-server": "^1.14.1"
+    "react-scripts": "^1.1.4"
   }
 }
