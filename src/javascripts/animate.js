@@ -12,7 +12,7 @@ import GPUParticleContainer from './particles/particleContainer';
 import KeyInput from './input/keyInput';
 import { COLORS } from './data/colors';
 import ShaderProgram from './shaders/shaderProgram';
-import { BAR_SHADER_CONFIG, SHADER_GPU_PARTICLE_CONFIG, QUAD_SHADER_CONFIG } from './shaders';
+import { BAR_SHADER_CONFIG, SHADER_GPU_PARTICLE_CONFIG, QUAD_SHADER_CONFIG, SIMPLE_SHADER_CONFIG } from './shaders';
 
 import * as InputKeys from './input/inputKeys';
 import * as InputActions from './input/inputActions';
@@ -30,11 +30,54 @@ let frameBuffer;
 let frameTexture;
 let quadBuffer;
 
+function Plane(gl) {
+  const buffer = this.buffer = gl.createBuffer();
+  const vertices = new Float32Array([
+    -1.0, 0,  1.0,
+    -1.0, 0,  -1.0,
+    1.0, 0,  -1.0,
+    1.0, 0,  1.0,
+    -1.0, 0,  1.0,
+    1.0, 0,  -1.0
+  ]);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
+  gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+  this.draw = function(gl, { simpleShader, perspectiveMatrix, camera }) {
+    const modelMatrix = mat4.create();
+
+    const vector = vec4.fromValues(0, -0.1, 0, 0);
+    const scaleVector = vec4.fromValues(10, 10, 10, 10);
+    mat4.translate(modelMatrix, modelMatrix, vector);
+    mat4.scale(modelMatrix, modelMatrix, scaleVector);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+
+    gl.useProgram(simpleShader.getProgram());
+    gl.uniformMatrix4fv(simpleShader.getUniformLocation(SIMPLE_SHADER_CONFIG.uniforms.modelMatrix), false, modelMatrix);
+    gl.uniformMatrix4fv(simpleShader.getUniformLocation(SIMPLE_SHADER_CONFIG.uniforms.projectionMatrix), false, perspectiveMatrix);
+    gl.uniformMatrix4fv(simpleShader.getUniformLocation(SIMPLE_SHADER_CONFIG.uniforms.modelViewMatrix), false, camera.getModelViewMatrix());
+
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.enableVertexAttribArray(simpleShader.getAttribLocation(SIMPLE_SHADER_CONFIG.attributes.vertices));
+    gl.vertexAttribPointer(simpleShader.getAttribLocation(SIMPLE_SHADER_CONFIG.attributes.vertices), 3, gl.FLOAT, false, 0, 0);
+
+
+    gl.drawArrays(gl.TRIANGLES, 0, vertices.length / 3.0);
+
+    gl.disableVertexAttribArray(simpleShader.getAttribLocation(SIMPLE_SHADER_CONFIG.attributes.vertices));
+  }
+}
+
+
 export default function animate(store, audioManager, uiController, { stats, options }) {
 
   const camera = new Camera();
   const keyInput = new KeyInput();
   const inputHandlers = {};
+  let plane;
 
   const clock = new Clock(true);
   const particleContainers = [];
@@ -54,6 +97,7 @@ export default function animate(store, audioManager, uiController, { stats, opti
   const gpuParticleShader = new ShaderProgram(SHADER_GPU_PARTICLE_CONFIG);
   const barShader = new ShaderProgram(BAR_SHADER_CONFIG);
   const quadShader = new ShaderProgram(QUAD_SHADER_CONFIG);
+  const simpleShader = new ShaderProgram(SIMPLE_SHADER_CONFIG);
 
   onLoad();
   // document.addEventListener("DOMContentLoaded", onLoad);
@@ -316,8 +360,8 @@ export default function animate(store, audioManager, uiController, { stats, opti
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-
     if (smokeReady) {
+      plane.draw(gl, { simpleShader, perspectiveMatrix, camera });
       for (let i = 0; i < particleContainers.length; i++) {
         drawParticles(particleContainers[i], audioBins[i]);
       }
@@ -418,6 +462,7 @@ export default function animate(store, audioManager, uiController, { stats, opti
     gpuParticleShader.compile(gl);
     barShader.compile(gl);
     quadShader.compile(gl);
+    simpleShader.compile(gl);
   }
 
   function onLoad () {
@@ -431,6 +476,7 @@ export default function animate(store, audioManager, uiController, { stats, opti
     // shaderManager.compileShaders(gl);
     initBuffers();
     initShaders();
+    plane = new Plane(gl);
     for (let i = 0; i < particleContainers.length; i++) {
       particleContainers[i].init(gl);
     }
